@@ -32,8 +32,13 @@ function ECDSA() {
     return gw.verify(h, {r: r.toByteArray(), s: s.toByteArray()});
   }
 
+  function generate(curve, bits) {
+    return curves.generate(curve, bits);
+  }
+  
   this.sign = sign;
   this.verify = verify;
+  this.generate = generate;
 }
 
 module.exports = ECDSA;

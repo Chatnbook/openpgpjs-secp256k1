@@ -2,19 +2,21 @@
  * Implementation of type KdfParams<br/>
  * <br/>
  * @requires util
+ * @requires enums
  * @module type/Kdf
  */
 
 module.exports = KdfParams;
 
-var util = require('../util.js');
+var util = require('../util.js'),
+  enums = require('../enums.js');
 
 /**
  * @constructor
  */
-function KdfParams() {
-  this.hash = 0;
-  this.cipher = 0;
+function KdfParams(hash, cipher) {
+  this.hash = hash || enums.hash.sha1;
+  this.cipher = cipher || enums.symmetric.aes128;
 }
 
 /**

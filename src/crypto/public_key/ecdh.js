@@ -69,9 +69,14 @@ function ECDH() {
     var m = rfc3394.unwrap(cipherAlgo, Z, C);
     return new BigInteger(m);
   }
+  
+  function generate(curve, bits) {
+    return curves.generate(curve, bits);
+  }
 
   this.decrypt = decrypt;
   this.encrypt = encrypt;
+  this.generate = generate;
 }
 
 module.exports = ECDH;

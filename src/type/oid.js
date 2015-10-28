@@ -13,8 +13,8 @@ var util = require('../util.js');
 /**
  * @constructor
  */
-function Oid() {
-  this.oid = '';
+function Oid(oid) {
+  this.oid = oid || '';
 }
 
 /**

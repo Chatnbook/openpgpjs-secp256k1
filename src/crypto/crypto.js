@@ -30,7 +30,9 @@ var random = require('./random.js'),
   publicKey = require('./public_key'),
   util = require('../util.js'),
   type_mpi = require('../type/mpi.js'),
-  type_ecdh_params = require('../type/ecdh_params.js');
+  type_oid = require('../type/oid.js'),
+  type_ecdh_params = require('../type/ecdh_params.js'),
+  type_kdf_params = require('../type/kdf_params.js');
 
 module.exports = {
   /**
@@ -221,7 +223,7 @@ module.exports = {
     }
   },
 
-  generateMpi: function(algo, bits) {
+  generateMpi: function(algo, bits, curve) {
     switch (algo) {
       case 'rsa_encrypt':
       case 'rsa_encrypt_sign':
@@ -238,6 +240,36 @@ module.exports = {
           output.push(keyObject.u);
           return mapResult(output);
         });
+
+      case 'ecdsa':
+        var ecdsa = new publicKey.ecdsa();
+        return ecdsa.generate(curve, bits).then(function (key) {
+          var output = [];
+          output.push(new type_oid(key.oid));
+          var mpi = new type_mpi();
+          mpi.fromBigInteger(key.R);
+          output.push(mpi);
+          mpi = new type_mpi();
+          mpi.fromBigInteger(key.r);
+          output.push(mpi);
+          return output;
+        });
+
+      case 'ecdh':
+        var ecdh = new publicKey.ecdh();
+        return ecdh.generate(curve, bits).then(function (key) {
+          var output = [];
+          output.push(new type_oid(key.oid));
+          var mpi = new type_mpi();
+          mpi.fromBigInteger(key.R);
+          output.push(mpi);
+          output.push(new type_kdf_params(key.hash, key.cipher));
+          mpi = new type_mpi();
+          mpi.fromBigInteger(key.r);
+          output.push(mpi);
+          return output;
+        });
+
       default:
         throw new Error('Unsupported algorithm for key generation.');
     }

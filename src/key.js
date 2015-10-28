@@ -915,16 +915,24 @@ function readArmored(armoredText) {
  */
 function generate(options) {
   var packetlist, secretKeyPacket, userIdPacket, dataToSign, signaturePacket, secretSubkeyPacket, subkeySignaturePacket;
+  
+  if (options.curve)
+    options.keyType = enums.publicKey.ecdsa;
 
   options.keyType = options.keyType || enums.publicKey.rsa_encrypt_sign;
   // RSA Encrypt-Only and RSA Sign-Only are deprecated and SHOULD NOT be generated
-  if (options.keyType !== enums.publicKey.rsa_encrypt_sign) {
+  if (options.keyType !== enums.publicKey.rsa_encrypt_sign
+      && options.keyType !== enums.publicKey.ecdsa) {
     throw new Error('Only RSA Encrypt or Sign supported');
   }
   // Key without passphrase is unlocked by definition
   if (!options.passphrase) {
     options.unlocked = true;
   }
+  
+  options.subkeyType = options.subkeyType || options.keyType;
+  if (options.subkeyType === enums.publicKey.ecdsa)
+    options.subkeyType = enums.publicKey.ecdh;
 
   // generate
   var genSecretKey = generateSecretKey();
@@ -934,13 +942,13 @@ function generate(options) {
   function generateSecretKey() {
     secretKeyPacket = new packet.SecretKey();
     secretKeyPacket.algorithm = enums.read(enums.publicKey, options.keyType);
-    return secretKeyPacket.generate(options.numBits);
+    return secretKeyPacket.generate(options.numBits, options.curve);
   }
 
   function generateSecretSubkey() {
     secretSubkeyPacket = new packet.SecretSubkey();
-    secretSubkeyPacket.algorithm = enums.read(enums.publicKey, options.keyType);
-    return secretSubkeyPacket.generate(options.numBits);
+    secretSubkeyPacket.algorithm = enums.read(enums.publicKey, options.subkeyType);
+    return secretSubkeyPacket.generate(options.numBits, options.curve);
   }
 
   function wrapKeyObject() {
@@ -968,10 +976,12 @@ function generate(options) {
     signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes192);
     signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
     signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.cast5);
-    signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
+    if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
     signaturePacket.preferredHashAlgorithms = [];
     signaturePacket.preferredHashAlgorithms.push(enums.hash.sha256);
-    signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
+    if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+      signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
     signaturePacket.preferredHashAlgorithms.push(enums.hash.sha512);
     signaturePacket.preferredCompressionAlgorithms = [];
     signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zlib);
