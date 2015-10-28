@@ -70,8 +70,8 @@ function ECDH() {
     return new BigInteger(m);
   }
   
-  function generate(curve, bits) {
-    return curves.generate(curve, bits);
+  function generate(curve, bits, material) {
+    return curves.generate(curve, bits, material);
   }
 
   this.decrypt = decrypt;

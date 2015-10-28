@@ -32,8 +32,8 @@ function ECDSA() {
     return gw.verify(h, {r: r.toByteArray(), s: s.toByteArray()});
   }
 
-  function generate(curve, bits) {
-    return curves.generate(curve, bits);
+  function generate(curve, bits, material) {
+    return curves.generate(curve, bits, material);
   }
   
   this.sign = sign;

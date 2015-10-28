@@ -49,10 +49,10 @@ function getCurve(oid_or_name) {
   throw new Error('Not valid curve');
 }
 
-function generate(curve, bits) {
+function generate(curve, bits, material) {
   return new Promise(function (resolve) {
     curve = getCurve(curve);
-    var r = curve.genKeyPair();
+    var r = (material) ? curve.keyFromPrivate(util.str2bin(material)) : curve.genKeyPair();
     var key = {
       oid: curve.oid,
       R: new BigInteger(r.getPublic().encode()),

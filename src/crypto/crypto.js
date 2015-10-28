@@ -223,7 +223,7 @@ module.exports = {
     }
   },
 
-  generateMpi: function(algo, bits, curve) {
+  generateMpi: function(algo, bits, curve, material) {
     switch (algo) {
       case 'rsa_encrypt':
       case 'rsa_encrypt_sign':
@@ -243,7 +243,7 @@ module.exports = {
 
       case 'ecdsa':
         var ecdsa = new publicKey.ecdsa();
-        return ecdsa.generate(curve, bits).then(function (key) {
+        return ecdsa.generate(curve, bits, material).then(function (key) {
           var output = [];
           output.push(new type_oid(key.oid));
           var mpi = new type_mpi();
@@ -257,7 +257,7 @@ module.exports = {
 
       case 'ecdh':
         var ecdh = new publicKey.ecdh();
-        return ecdh.generate(curve, bits).then(function (key) {
+        return ecdh.generate(curve, bits, material).then(function (key) {
           var output = [];
           output.push(new type_oid(key.oid));
           var mpi = new type_mpi();
