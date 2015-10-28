@@ -172,6 +172,27 @@ describe('Elliptic Curve Cryptography', function () {
       done();
     });
   });
+  it('Generate key pair from data', function (done) {
+    var keyMaterial = openpgp.util.hex2bin("347c34c64376d079f00d5fabd0d63d12e440b948267a13a9188a4f970771477d");
+    var options = {
+      userId: "Horatio (secp256k1) <horatio@example.net>",
+      curve: "secp256k1",
+      material: {
+        key: keyMaterial,
+        subkey: keyMaterial
+      }
+    };
+    openpgp.generateKeyPair(options).then(function (keyPair) {
+      expect(keyPair).to.exist;
+      expect(keyPair.key).to.exist;
+      expect(keyPair.key.isPrivate()).to.be.true;
+      expect(keyPair.key.primaryKey).to.exist;
+      expect(keyPair.key.primaryKey.mpi[2].toBytes()).to.equal(keyMaterial);
+      expect(keyPair.privateKeyArmored).to.exist;
+      expect(keyPair.publicKeyArmored).to.exist;
+      done();
+    });
+  });
   it('Verify clear signed message', function (done) {
     var pub = load_pub_key('juliet');
     var msg = openpgp.cleartext.readArmored(data['juliet'].message_signed);
