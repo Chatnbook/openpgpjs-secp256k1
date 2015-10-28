@@ -35,6 +35,7 @@ module.exports = PublicKey;
 var util = require('../util.js'),
   type_mpi = require('../type/mpi.js'),
   type_keyid = require('../type/keyid.js'),
+  type_oid = require('../type/oid.js'),
   enums = require('../enums.js'),
   crypto = require('../crypto');
 
@@ -100,8 +101,10 @@ PublicKey.prototype.read = function (bytes) {
     var p = 0;
 
     for (var i = 0; i < mpicount && p < bmpi.length; i++) {
-
-      this.mpi[i] = new type_mpi();
+      if (this.algorithm == 'ecdsa' && i == 0)
+        this.mpi[i] = new type_oid();
+      else
+        this.mpi[i] = new type_mpi();
 
       p += this.mpi[i].read(bmpi.substr(p));
 

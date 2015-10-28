@@ -624,7 +624,7 @@ Signature.prototype.verify = function (key, data) {
   //    Algorithm-Specific Fields for DSA signatures:
   //      - MPI of DSA value r.
   //      - MPI of DSA value s.
-  else if (publicKeyAlgorithm == 17)
+  else if (publicKeyAlgorithm == 17 || publicKeyAlgorithm == 19)
     mpicount = 2;
 
   var mpi = [],
