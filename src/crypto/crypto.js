@@ -28,7 +28,9 @@
 var random = require('./random.js'),
   cipher = require('./cipher'),
   publicKey = require('./public_key'),
-  type_mpi = require('../type/mpi.js');
+  util = require('../util.js'),
+  type_mpi = require('../type/mpi.js'),
+  type_ecdh_params = require('../type/ecdh_params.js');
 
 module.exports = {
   /**
@@ -40,7 +42,7 @@ module.exports = {
    * @return {Array<module:type/mpi>} if RSA an module:type/mpi;
    * if elgamal encryption an array of two module:type/mpi is returned; otherwise null
    */
-  publicKeyEncrypt: function(algo, publicMPIs, data) {
+  publicKeyEncrypt: function(algo, publicMPIs, data, fingerprint) {
     var result = (function() {
       var m;
       switch (algo) {
@@ -50,7 +52,7 @@ module.exports = {
           var n = publicMPIs[0].toBigInteger();
           var e = publicMPIs[1].toBigInteger();
           m = data.toBigInteger();
-          return [rsa.encrypt(m, e, n)];
+          return mapResult([rsa.encrypt(m, e, n)]);
 
         case 'elgamal':
           var elgamal = new publicKey.elgamal();
@@ -58,18 +60,30 @@ module.exports = {
           var g = publicMPIs[1].toBigInteger();
           var y = publicMPIs[2].toBigInteger();
           m = data.toBigInteger();
-          return elgamal.encrypt(m, g, p, y);
+          return mapResult(elgamal.encrypt(m, g, p, y));
+
+        case 'ecdh':
+          var ecdh = new publicKey.ecdh();
+          var curve = publicMPIs[0];
+          var kdfParams = publicMPIs[2];
+          var R = publicMPIs[1].toBigInteger();
+          var res = ecdh.encrypt(algo, curve, kdfParams, data, R, util.hex2bin(fingerprint));
+          return mapResult([res.V]).concat([new type_ecdh_params(res.C)]);
 
         default:
           return [];
       }
     })();
+    
+    return result;
 
-    return result.map(function(bn) {
-      var mpi = new type_mpi();
-      mpi.fromBigInteger(bn);
-      return mpi;
-    });
+    function mapResult(result) {
+      return result.map(function (bn) {
+        var mpi = new type_mpi();
+        mpi.fromBigInteger(bn);
+        return mpi;
+      });
+    }
   },
 
   /**
@@ -84,7 +98,7 @@ module.exports = {
    * @return {module:type/mpi} returns a big integer containing the decrypted data; otherwise null
    */
 
-  publicKeyDecrypt: function(algo, keyIntegers, dataIntegers) {
+  publicKeyDecrypt: function(algo, keyIntegers, dataIntegers, fingerprint) {
     var p;
 
     var bn = (function() {
@@ -102,6 +116,7 @@ module.exports = {
           var u = keyIntegers[5].toBigInteger();
           var m = dataIntegers[0].toBigInteger();
           return rsa.decrypt(m, n, e, d, p, q, u);
+
         case 'elgamal':
           var elgamal = new publicKey.elgamal();
           var x = keyIntegers[3].toBigInteger();
@@ -109,6 +124,16 @@ module.exports = {
           var c2 = dataIntegers[1].toBigInteger();
           p = keyIntegers[0].toBigInteger();
           return elgamal.decrypt(c1, c2, p, x);
+
+        case 'ecdh':
+          var ecdh = new publicKey.ecdh();
+          var curve = keyIntegers[0];
+          var kdfParams = keyIntegers[2];
+          var V = dataIntegers[0].toBigInteger();
+          var C = dataIntegers[1].data;
+          var r = keyIntegers[3].toBigInteger();
+          return ecdh.decrypt(algo, curve, kdfParams, V, C, r, util.hex2bin(fingerprint));
+
         default:
           return null;
       }
@@ -142,8 +167,9 @@ module.exports = {
         // Algorithm-Specific Fields for DSA secret keys:
         //   - MPI of DSA secret exponent x.
         return 1;
+      case 'ecdh':
       case 'ecdsa':
-        // Algorithm-Specific Fields for ECDSA secret keys:
+        // Algorithm-Specific Fields for ECDSA or ECDH secret keys:
         //   - MPI of an integer representing the secret key.
         return 1;
       default:
@@ -182,6 +208,13 @@ module.exports = {
         //       - MPI of EC point representing public key.
       case 'ecdsa':
         return 2;
+
+        //   Algorithm-Specific Fields for ECDH public keys:
+        //       - OID of curve;
+        //       - MPI of EC point representing public key.
+        //       - variable-length field containing KDF parameters.
+      case 'ecdh':
+        return 3;
 
       default:
         throw new Error('Unknown algorithm.');

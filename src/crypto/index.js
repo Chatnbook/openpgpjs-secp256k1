@@ -16,7 +16,9 @@ module.exports = {
   /** @see module:crypto/random */
   random: require('./random.js'),
   /** @see module:crypto/pkcs1 */
-  pkcs1: require('./pkcs1.js')
+  pkcs1: require('./pkcs1.js'),
+  /** @see module:crypto/pkcs1 */
+  pkcs5: require('./pkcs5.js')
 };
 
 var crypto = require('./crypto.js');

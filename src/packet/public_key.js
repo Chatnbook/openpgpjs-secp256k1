@@ -24,8 +24,10 @@
  * major versions.  Consequently, this section is complex.
  * @requires crypto
  * @requires enums
+ * @requires type/kdf_params
  * @requires type/keyid
  * @requires type/mpi
+ * @requires type/oid
  * @requires util
  * @module packet/public_key
  */
@@ -34,6 +36,7 @@ module.exports = PublicKey;
 
 var util = require('../util.js'),
   type_mpi = require('../type/mpi.js'),
+  type_kdf_params = require('../type/kdf_params.js'),
   type_keyid = require('../type/keyid.js'),
   type_oid = require('../type/oid.js'),
   enums = require('../enums.js'),
@@ -101,8 +104,10 @@ PublicKey.prototype.read = function (bytes) {
     var p = 0;
 
     for (var i = 0; i < mpicount && p < bmpi.length; i++) {
-      if (this.algorithm == 'ecdsa' && i == 0)
+      if ((this.algorithm == 'ecdsa' || this.algorithm == 'ecdh') && i == 0)
         this.mpi[i] = new type_oid();
+      else if (this.algorithm == 'ecdh' && i == 2)
+        this.mpi[i] = new type_kdf_params();
       else
         this.mpi[i] = new type_mpi();
 

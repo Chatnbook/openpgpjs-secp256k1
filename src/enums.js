@@ -27,6 +27,7 @@ module.exports = {
     rsa_sign: 3,
     elgamal: 16,
     dsa: 17,
+    ecdh: 18,
     ecdsa: 19
   },
 
