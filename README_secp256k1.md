@@ -103,6 +103,11 @@ openpgp.encryptMessage(publicKey.keys, 'Hello, World!').then(function(pgpMessage
 * The dependency with AES library can be eliminated, if the OpenPGP.js crypto/cipher/aes.js is modified to provide a decrypt function. It is only used by the wrap and unwrap functions in the crypto/rfc3394.js file.
 
 
+### Note
+
+Althought the example uses the same value to generate the main key, and the subkey, it is a recommended practice to use different keys. The main key is used for signature and the subkeys are used for encryption.
+
+
 ### Resources
 
 * Elliptic Curve Cryptography (ECC) in OpenPGP [RFC 6637](http://www.ietf.org/rfc/rfc6637.txt)
