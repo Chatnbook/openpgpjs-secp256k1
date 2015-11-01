@@ -68,7 +68,7 @@ var options = {
     curve: 'secp256k1',
     userId: 'Hamlet <hamlet@example.net>',
     passphrase: 'To be, or not to be: that is the question',
-    material {
+    material: {
       key: privateKey,
       subkey: privateKey
     }
