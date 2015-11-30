@@ -1,7 +1,6 @@
 'use strict';
 
 var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
-//var openpgp = require('../../../openpgpjs');
 
 var chai = require('chai'),
   expect = chai.expect;
@@ -246,5 +245,126 @@ describe('Elliptic Curve Cryptography', function () {
         done();
       });
     });
+  });
+});
+
+function das() {
+  throw new Error('Not valid curve');
+}
+
+describe('ECC parameters validation', function () {
+  var verify_signature = function (oid, r, s, pub, message) {
+    return function () {
+      var signature = [];
+      signature.push(new openpgp.MPI());
+      signature[0].fromBytes(r);
+      signature.push(new openpgp.MPI());
+      signature[1].fromBytes(s);
+      var publicKey = [];
+      publicKey.push({ oid: oid });
+      publicKey.push(new openpgp.MPI());
+      publicKey[1].fromBytes(pub);
+      return openpgp.crypto.signature.verify(19, // ECDSA
+        8, //  SHA256
+        signature,
+        publicKey,
+        message
+      );
+    }
+  };
+  function Oid(oid) {
+    this.oid = oid || '';
+  }
+  Oid.prototype.write = function () {
+    var bytes = String.fromCharCode(this.oid.length);
+    bytes += this.oid;
+    return bytes;
+  };
+  function KdfParams(hash, cipher) {
+    this.hash = hash || enums.hash.sha1;
+    this.cipher = cipher || enums.symmetric.aes128;
+  }
+  KdfParams.prototype.write = function () {
+    var res = [];
+    res[0] = 3;
+    res[1] = 1;
+    res[2] = this.hash;
+    res[3] = this.cipher;
+    return openpgp.util.bin2str(res);
+  };
+  var decrypt_message = function (oid, hash, cipher, priv, ephemeral, encryptionKeyData, fingerprint) {
+    return function () {
+      var privateKey = [];
+      privateKey.push(new Oid(oid));
+      privateKey.push('');
+      privateKey.push(new KdfParams(hash, cipher));
+      privateKey.push(new openpgp.MPI());
+      privateKey[3].fromBytes(priv);
+      var data = [];
+      data.push(new openpgp.MPI());
+      data[0].fromBytes(ephemeral);
+      data.push({ data: encryptionKeyData });
+      return openpgp.crypto.publicKeyDecrypt('ecdh',
+        privateKey,
+        data,
+        fingerprint
+      );
+    }
+  };
+  var secp256k1_value = openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+  var secp256k1_point = String.fromCharCode(0x04) + openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) + openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+  it('ECDSA Invalid curve oid', function (done) {
+    var res = verify_signature('invalid oid', '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    res = verify_signature(openpgp.util.bin2str([0x00]), '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    done();
+  });
+  it('ECDSA Invalid public key', function (done) {
+    var res = verify_signature('secp256k1', '', '', '', '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    var pub = String.fromCharCode(0x04) + openpgp.util.bin2str([
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    res = verify_signature('secp256k1', '', '', pub, '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    done();
+  });
+  it('ECDSA Invalid signature', function (done) {
+    var pub = secp256k1_point;
+    var res = verify_signature('secp256k1', '', '', pub, '');
+    expect(res()).to.be.false;
+    done();
+  });
+  it('ECDH Invalid curve oid', function (done) {
+    var res = decrypt_message('', 2 /* SHA1 */, 7 /* AES128 */, '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    done();
+  });
+  it('ECDH Invalid ephemeral key', function (done) {
+    var res = decrypt_message('secp256k1', 2, 7, '', '', '', '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    done();
+  });
+  it('ECDH Invalid key data integrity', function (done) {
+    var C = openpgp.util.bin2str([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    var res = decrypt_message('secp256k1', 2, 7, secp256k1_value, secp256k1_point, C, '');
+    expect(res).to.throw(Error, /Key Data Integrity failed/);
+    done();
   });
 });
