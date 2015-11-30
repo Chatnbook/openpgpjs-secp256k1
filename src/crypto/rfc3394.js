@@ -109,7 +109,7 @@ function unwrap(cipherAlgo, key, data) {
   if (A[0] == IV[0] && A[1] == IV[1]) {
     return pack(R);
   }
-  return null;
+  throw new Error("Key Data Integrity failed");
 }
 
 module.exports = {
