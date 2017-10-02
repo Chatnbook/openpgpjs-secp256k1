@@ -538,10 +538,6 @@ export default {
    * @return {Function}   The Buffer constructor or 'undefined'
    */
   getNodeBuffer: function() {
-    if (!this.detectNode()) {
-      return;
-    }
-
     const buffer = require('buffer')
     return buffer && buffer.Buffer;
   }
