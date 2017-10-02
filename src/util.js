@@ -520,19 +520,12 @@ export default {
   },
 
   /**
-   * Detect Node.js runtime.
-   */
-  detectNode: function() {
-    return typeof window === 'undefined';
-  },
-
-  /**
    * Get native Node.js crypto api. The default configuration is to use
    * the api when available. But it can also be deactivated with config.use_native
    * @return {Object}   The crypto module or 'undefined'
    */
   getNodeCrypto: function() {
-    if (!this.detectNode() || !config.use_native) {
+    if (!config.use_native) {
       return;
     }
 
@@ -549,7 +542,8 @@ export default {
       return;
     }
 
-    return require('buffer').Buffer;
+    const buffer = require('buffer')
+    return buffer && buffer.Buffer;
   }
 
 };
