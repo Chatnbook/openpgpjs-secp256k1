@@ -96,9 +96,8 @@ export function destroyWorker() {
  *                                     { key:Key, privateKeyArmored:String, publicKeyArmored:String }
  * @static
  */
-export function generateKey({ userIds=[], passphrase, numBits=2048, unlocked=false, curve=null } = {}) {
-  const options = formatUserIds({ userIds, passphrase, numBits, unlocked, curve });
-
+export function generateKey(options) {
+  // use web worker if web crypto apis are not supported
   if (!util.getWebCryptoAll() && asyncProxy) { // use web worker if web crypto apis are not supported
     return asyncProxy.delegate('generateKey', options);
   }

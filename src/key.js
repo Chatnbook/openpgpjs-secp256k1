@@ -1004,7 +1004,6 @@ export function generate(options) {
     packetlist.push(secretKeyPacket);
 
     options.userIds.forEach(function(userId, index) {
-
       userIdPacket = new packet.Userid();
       userIdPacket.read(util.str2Uint8Array(userId));
 
@@ -1016,18 +1015,21 @@ export function generate(options) {
       signaturePacket.publicKeyAlgorithm = options.keyType;
       signaturePacket.hashAlgorithm = config.prefer_hash_algorithm;
       signaturePacket.keyFlags = [enums.keyFlags.certify_keys | enums.keyFlags.sign_data];
+
       signaturePacket.preferredSymmetricAlgorithms = [];
-      // prefer aes256, aes128, then aes192 (no WebCrypto support: https://www.chromium.org/blink/webcrypto#TOC-AES-support)
       signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes256);
-      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
       signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes192);
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
       signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.cast5);
-      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
+      if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+        signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
+
       signaturePacket.preferredHashAlgorithms = [];
-      // prefer fast asm.js implementations (SHA-256, SHA-1)
       signaturePacket.preferredHashAlgorithms.push(enums.hash.sha256);
-      signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
+      if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+        signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
       signaturePacket.preferredHashAlgorithms.push(enums.hash.sha512);
+
       signaturePacket.preferredCompressionAlgorithms = [];
       signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zlib);
       signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zip);
@@ -1042,7 +1044,6 @@ export function generate(options) {
 
       packetlist.push(userIdPacket);
       packetlist.push(signaturePacket);
-
     });
 
     dataToSign = {};
