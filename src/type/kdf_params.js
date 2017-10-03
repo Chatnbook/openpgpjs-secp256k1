@@ -41,9 +41,6 @@ function KdfParams(hash, cipher) {
 }
 
 /**
-
-
-
 * Parsing method for KdfParams
 * @param {String} input Input to read the KdfParams from
 */
@@ -63,6 +60,7 @@ KdfParams.prototype.write = function () {
  res[3] = this.cipher;
  return util.bin2str(res);*/
 
+/**
  * Read KdfParams from an Uint8Array
  * @param  {Uint8Array}  input  Where to read the KdfParams from
  * @return {Number}             Number of read bytes

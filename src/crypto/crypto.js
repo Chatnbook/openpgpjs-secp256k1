@@ -28,15 +28,6 @@
  * @module crypto/crypto
  */
 
-var random = require('./random.js'),
-  cipher = require('./cipher'),
-  publicKey = require('./public_key'),
-  util = require('../util.js'),
-  type_mpi = require('../type/mpi.js'),
-  type_oid = require('../type/oid.js'),
-  type_ecdh_params = require('../type/ecdh_params.js'),
-  type_kdf_params = require('../type/kdf_params.js');
-
 import random from './random.js';
 import cipher from './cipher';
 import publicKey from './public_key';

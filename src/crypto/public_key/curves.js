@@ -6,8 +6,8 @@
 
 var EC = require('elliptic').ec,
   BigInteger = require('./jsbn.js'),
-  util = require('../../util.js'),
-  enums = require('../../enums.js');
+  util = require('../../util.js').default,
+  enums = require('../../enums.js').default;
 
 var curves = {
   nistp256: {
