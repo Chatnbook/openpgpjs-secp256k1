@@ -58,12 +58,14 @@ export default {
         return dopublic.compareTo(s1) === 0;
       case 19:
         // ECDSA
+        // var ecdsa = new publicKey.ecdsa();
         const ecdsa = publicKey.elliptic.ecdsa;
         const curve = publickey_MPIs[0];
         const r = msg_MPIs[0].toBigInteger();
         const s = msg_MPIs[1].toBigInteger();
         m = data;
         const gw = publickey_MPIs[1].toBigInteger();
+        // return ecdsa.verify(curve, hash_algo, r, s, m, gw);
         return ecdsa.verify(curve.oid, hash_algo, {r: r, s: s}, m, gw);
       default:
         throw new Error('Invalid signature algorithm.');
@@ -119,10 +121,13 @@ export default {
 
       case 19:
         // ECDSA
+        // var ecdsa = new publicKey.ecdsa();
         const ecdsa = publicKey.elliptic.ecdsa;
         const curve = keyIntegers[0];
         const w = keyIntegers[2].toBigInteger();
         m = data;
+        // var result = ecdsa.sign(curve, hash_algo, m, w);
+        // return result[0].toString() + result[1].toString();
         const signature = ecdsa.sign(curve.oid, hash_algo, m, w);
         return util.str2Uint8Array(signature.r.toMPI() + signature.s.toMPI());
 

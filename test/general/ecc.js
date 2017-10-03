@@ -1,6 +1,6 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
 
 var chai = require('chai'),
   expect = chai.expect;
@@ -155,12 +155,49 @@ describe('Elliptic Curve Cryptography', function () {
     load_priv_key('juliet');
     done();
   });
+  it('Generate key pair', function (done) {
+    var options = {
+      userIds: ["Hamlet (secp256k1) <hamlet@example.net>"],
+      curve: "secp256k1",
+      passphrase: "ophelia"
+    };
+    openpgp.generateKeyPair(options).then(function (keyPair) {
+      expect(keyPair).to.exist;
+      expect(keyPair.key).to.exist;
+      expect(keyPair.key.primaryKey).to.exist;
+      var r = keyPair.key.primaryKey.getFingerprint();
+      expect(keyPair.privateKeyArmored).to.exist;
+      expect(keyPair.publicKeyArmored).to.exist;
+      done();
+    });
+  });
+  it('Generate key pair from data', function (done) {
+    var keyMaterial = openpgp.util.hex2bin("347c34c64376d079f00d5fabd0d63d12e440b948267a13a9188a4f970771477d");
+    var options = {
+      userId: "Horatio (secp256k1) <horatio@example.net>",
+      curve: "secp256k1",
+      material: {
+        key: keyMaterial,
+        subkey: keyMaterial
+      }
+    };
+    openpgp.generateKeyPair(options).then(function (keyPair) {
+      expect(keyPair).to.exist;
+      expect(keyPair.key).to.exist;
+      expect(keyPair.key.isPrivate()).to.be.true;
+      expect(keyPair.key.primaryKey).to.exist;
+      expect(keyPair.key.primaryKey.mpi[2].toBytes()).to.equal(keyMaterial);
+      expect(keyPair.privateKeyArmored).to.exist;
+      expect(keyPair.publicKeyArmored).to.exist;
+      done();
+    });
+  });
   it('Verify clear signed message', function (done) {
     var pub = load_pub_key('juliet');
     var msg = openpgp.cleartext.readArmored(data['juliet'].message_signed);
-    openpgp.verify({publicKeys: [pub], message: msg}).then(function(result) {
+    openpgp.verifyClearSignedMessage([pub], msg).then(function (result) {
       expect(result).to.exist;
-      expect(result.data.trim()).to.equal(data['juliet'].message);
+      expect(result.text).to.equal(data['juliet'].message);
       expect(result.signatures).to.have.length(1);
       expect(result.signatures[0].valid).to.be.true;
       done();
@@ -168,12 +205,12 @@ describe('Elliptic Curve Cryptography', function () {
   });
   it('Sign message', function (done) {
     var romeo = load_priv_key('romeo');
-    openpgp.sign({privateKeys: [romeo], data: data['romeo'].message + "\n"}).then(function (signed) {
+    openpgp.signClearMessage([romeo], data['romeo'].message + "\n").then(function (signedMessage) {
       var romeo = load_pub_key('romeo');
-      var msg = openpgp.cleartext.readArmored(signed.data);
-      openpgp.verify({publicKeys: [romeo], message: msg}).then(function (result) {
+      var clearMessage = openpgp.cleartext.readArmored(signedMessage);
+      openpgp.verifyClearSignedMessage([romeo], clearMessage).then(function (result) {
         expect(result).to.exist;
-        expect(result.data.trim()).to.equal(data['romeo'].message);
+        expect(result.text.trim()).to.equal(data['romeo'].message);
         expect(result.signatures).to.have.length(1);
         expect(result.signatures[0].valid).to.be.true;
         done();
@@ -184,10 +221,10 @@ describe('Elliptic Curve Cryptography', function () {
     var juliet = load_pub_key('juliet');
     var romeo = load_priv_key('romeo');
     var msg = openpgp.message.readArmored(data['juliet'].message_encrypted);
-    openpgp.decrypt({privateKey: romeo, publicKeys: [juliet], message: msg}).then(function (result) {
+    openpgp.decryptAndVerifyMessage(romeo, [juliet], msg).then(function (result) {
       expect(result).to.exist;
       // trim required because https://github.com/openpgpjs/openpgpjs/issues/311
-      expect(result.data.trim()).to.equal(data['juliet'].message);
+      expect(result.text.trim()).to.equal(data['juliet'].message);
       expect(result.signatures).to.have.length(1);
       expect(result.signatures[0].valid).to.be.true;
       done();
@@ -196,32 +233,138 @@ describe('Elliptic Curve Cryptography', function () {
   it('Encrypt and sign message', function (done) {
     var romeo = load_priv_key('romeo');
     var juliet = load_pub_key('juliet');
-    openpgp.encrypt({publicKeys: [juliet], privateKeys: [romeo], data: data['romeo'].message + "\n"}).then(function (encrypted) {
-      var message = openpgp.message.readArmored(encrypted.data);
+    openpgp.signAndEncryptMessage([juliet], romeo, data['romeo'].message + "\n").then(function (encryptedSignedMessage) {
+      var message = openpgp.message.readArmored(encryptedSignedMessage);
       var romeo = load_pub_key('romeo');
       var juliet = load_priv_key('juliet');
-      openpgp.decrypt({privateKey: juliet, publicKeys: [romeo], message: message}).then(function (result) {
+      openpgp.decryptAndVerifyMessage(juliet, [romeo], message).then(function (result) {
         expect(result).to.exist;
-        expect(result.data.trim()).to.equal(data['romeo'].message);
+        expect(result.text.trim()).to.equal(data['romeo'].message);
         expect(result.signatures).to.have.length(1);
         expect(result.signatures[0].valid).to.be.true;
         done();
       });
     });
   });
-  it('Generate key pair', function (done) {
-    var options = {
-      userIds: {name: "Hamlet (secp256k1)", email: "hamlet@example.net"},
-      curve: "secp256k1",
-      passphrase: "ophelia"
-    };
-    openpgp.generateKey(options).then(function (keyPair) {
-      expect(keyPair).to.exist;
-      expect(keyPair.key).to.exist;
-      expect(keyPair.key.primaryKey).to.exist;
-      expect(keyPair.privateKeyArmored).to.exist;
-      expect(keyPair.publicKeyArmored).to.exist;
-      done();
-    });
+});
+
+function das() {
+  throw new Error('Not valid curve');
+}
+
+describe('ECC parameters validation', function () {
+  var verify_signature = function (oid, r, s, pub, message) {
+    return function () {
+      var signature = [];
+      signature.push(new openpgp.MPI());
+      signature[0].fromBytes(r);
+      signature.push(new openpgp.MPI());
+      signature[1].fromBytes(s);
+      var publicKey = [];
+      publicKey.push({ oid: oid });
+      publicKey.push(new openpgp.MPI());
+      publicKey[1].fromBytes(pub);
+      return openpgp.crypto.signature.verify(19, // ECDSA
+        8, //  SHA256
+        signature,
+        publicKey,
+        message
+      );
+    }
+  };
+  function Oid(oid) {
+    this.oid = oid || '';
+  }
+  Oid.prototype.write = function () {
+    var bytes = String.fromCharCode(this.oid.length);
+    bytes += this.oid;
+    return bytes;
+  };
+  function KdfParams(hash, cipher) {
+    this.hash = hash || enums.hash.sha1;
+    this.cipher = cipher || enums.symmetric.aes128;
+  }
+  KdfParams.prototype.write = function () {
+    var res = [];
+    res[0] = 3;
+    res[1] = 1;
+    res[2] = this.hash;
+    res[3] = this.cipher;
+    return openpgp.util.bin2str(res);
+  };
+  var decrypt_message = function (oid, hash, cipher, priv, ephemeral, encryptionKeyData, fingerprint) {
+    return function () {
+      var privateKey = [];
+      privateKey.push(new Oid(oid));
+      privateKey.push('');
+      privateKey.push(new KdfParams(hash, cipher));
+      privateKey.push(new openpgp.MPI());
+      privateKey[3].fromBytes(priv);
+      var data = [];
+      data.push(new openpgp.MPI());
+      data[0].fromBytes(ephemeral);
+      data.push({ data: encryptionKeyData });
+      return openpgp.crypto.publicKeyDecrypt('ecdh',
+        privateKey,
+        data,
+        fingerprint
+      );
+    }
+  };
+  var secp256k1_value = openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+  var secp256k1_point = String.fromCharCode(0x04) + openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) + openpgp.util.bin2str([
+    0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+  it('ECDSA Invalid curve oid', function (done) {
+    var res = verify_signature('invalid oid', '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    res = verify_signature(openpgp.util.bin2str([0x00]), '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    done();
+  });
+  it('ECDSA Invalid public key', function (done) {
+    var res = verify_signature('secp256k1', '', '', '', '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    var pub = String.fromCharCode(0x04) + openpgp.util.bin2str([
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    res = verify_signature('secp256k1', '', '', pub, '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    done();
+  });
+  it('ECDSA Invalid signature', function (done) {
+    var pub = secp256k1_point;
+    var res = verify_signature('secp256k1', '', '', pub, '');
+    expect(res()).to.be.false;
+    done();
+  });
+  it('ECDH Invalid curve oid', function (done) {
+    var res = decrypt_message('', 2 /* SHA1 */, 7 /* AES128 */, '', '', '', '');
+    expect(res).to.throw(Error, /Not valid curve/);
+    done();
+  });
+  it('ECDH Invalid ephemeral key', function (done) {
+    var res = decrypt_message('secp256k1', 2, 7, '', '', '', '');
+    expect(res).to.throw(Error, /Unknown point format/);
+    done();
+  });
+  it('ECDH Invalid key data integrity', function (done) {
+    var C = openpgp.util.bin2str([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    var res = decrypt_message('secp256k1', 2, 7, secp256k1_value, secp256k1_point, C, '');
+    expect(res).to.throw(Error, /Key Data Integrity failed/);
+    done();
   });
 });

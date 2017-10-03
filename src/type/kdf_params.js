@@ -18,12 +18,14 @@
 /**
  * Implementation of type KDF parameters RFC 6637<br/>
  * <br/>
+ * @requires util
  * @requires enums
  * @module type/kdf_params
  */
 
 'use strict';
 
+import util from '../util.js';
 import enums from '../enums.js';
 
 module.exports = KdfParams;
@@ -39,6 +41,28 @@ function KdfParams(hash, cipher) {
 }
 
 /**
+
+
+
+* Parsing method for KdfParams
+* @param {String} input Input to read the KdfParams from
+*/
+/*KdfParams.prototype.read = function (bytes) {
+ var len = bytes.charCodeAt(0);
+ var reserved = bytes.charCodeAt(1);
+ this.hash = bytes.charCodeAt(2);
+ this.cipher = bytes.charCodeAt(3);
+ return 4;
+};
+
+KdfParams.prototype.write = function () {
+ var res = [];
+ res[0] = 3;
+ res[1] = 1;
+ res[2] = this.hash;
+ res[3] = this.cipher;
+ return util.bin2str(res);*/
+
  * Read KdfParams from an Uint8Array
  * @param  {Uint8Array}  input  Where to read the KdfParams from
  * @return {Number}             Number of read bytes

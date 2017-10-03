@@ -1,4 +1,4 @@
-var openpgp = require('openpgp');
+﻿var openpgp = require('openpgp');
 var bitcoin = require('bitcoinjs-lib');
 var bs58check = require('bs58check');
 var crypto = require('crypto');
@@ -18,7 +18,7 @@ describe('Bitcoin OpenPGP interop', function () {
     var pk = buff.slice(1, -1);
     var material = openpgp.util.bin2str(pk);
     var options = {
-      userIds {name: "userid", email: "none@example.net"},
+      userIds: ["userid"],
       curve: "secp256k1",
       material: {
         key: material,
@@ -33,11 +33,11 @@ describe('Bitcoin OpenPGP interop', function () {
       done();
     });
   });
-  it('Generate openpgp key from bitcoin HDKey', function (done) {
+  it('Generate openpgp key from bitcoin HDkey', function (done) {
     // bitcoin
     var seed = crypto.randomBytes(32);
     var master = bitcoin.HDNode.fromSeedBuffer(seed);
-    var child = master.derive(42);
+    var child = master.derive(54); // 42
     var s = child.toBase58();
 
     // openpgp
@@ -48,7 +48,7 @@ describe('Bitcoin OpenPGP interop', function () {
 
     var buff = openpgp.util.bin2str(pk);
     var options = {
-      userIds: {name: "userid", email: "none@example.net"},
+      userIds: ["userid"],
       curve: "secp256k1",
       material: {
         key: buff,
@@ -64,4 +64,3 @@ describe('Bitcoin OpenPGP interop', function () {
     });
   });
 });
-

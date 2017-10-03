@@ -10,4 +10,3 @@ describe('General', function () {
   require('./hkp.js');
   require('./oid.js');
 });
-

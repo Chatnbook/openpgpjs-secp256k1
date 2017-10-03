@@ -33,6 +33,7 @@
  * @requires enums
  * @requires type/keyid
  * @requires type/mpi
+ * @requires type/ecdh_params
  * @requires type/ecdh_symkey
  * @requires util
  * @module packet/public_key_encrypted_session_key
@@ -43,6 +44,7 @@
 import type_keyid from '../type/keyid.js';
 import util from '../util.js';
 import type_mpi from '../type/mpi.js';
+import type_ecdh_params from '../type/ecdh_params.js';
 import type_ecdh_symkey from '../type/ecdh_symkey.js';
 import enums from '../enums.js';
 import crypto from '../crypto';
@@ -103,7 +105,7 @@ PublicKeyEncryptedSessionKey.prototype.read = function (bytes) {
   for (var j = 0; j < integerCount; j++) {
     var mpi;
     if (this.publicKeyAlgorithm === 'ecdh' && j === 1) {
-      mpi = new type_ecdh_symkey();
+      mpi = new type_ecdh_symkey(); // new type_ecdh_params();
     } else {
       mpi = new type_mpi();
     }
@@ -138,7 +140,7 @@ PublicKeyEncryptedSessionKey.prototype.encrypt = function (key) {
 
   var mpi;
   if (this.publicKeyAlgorithm === 'ecdh') {
-    mpi = util.str2Uint8Array(crypto.pkcs5.addPadding(data));
+    mpi = util.str2Uint8Array(crypto.pkcs5.addPadding(data)); // crypto.pkcs5.addPadding(data);
   } else {
     mpi = new type_mpi();
     mpi.fromBytes(crypto.pkcs1.eme.encode(
@@ -172,13 +174,13 @@ PublicKeyEncryptedSessionKey.prototype.decrypt = function (key) {
   var decoded;
   if (this.publicKeyAlgorithm === 'ecdh') {
     decoded = crypto.pkcs5.removePadding(result);
-    checksum = util.readNumber(util.str2Uint8Array(decoded.substr(decoded.length - 2)));
+    checksum = util.readNumber(util.str2Uint8Array(decoded.substr(decoded.length - 2))); // remove str2Uint8Array
   } else {
     decoded = crypto.pkcs1.eme.decode(result);
-    checksum = util.readNumber(util.str2Uint8Array(result.substr(result.length - 2)));
+    checksum = util.readNumber(util.str2Uint8Array(result.substr(result.length - 2))); // remove str2Uint8Array
   }
 
-  key = util.str2Uint8Array(decoded.substring(1, decoded.length - 2));
+  key = util.str2Uint8Array(decoded.substring(1, decoded.length - 2)); // remove str2Uint8Array
 
   if (checksum !== util.calc_checksum(key)) {
     throw new Error('Checksum mismatch');

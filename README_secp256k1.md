@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+### Description 
+=======
 ### Description
+>>>>>>> master
 
 This work is to provide an implementation of [RFC 6637](http://www.ietf.org/rfc/rfc6637.txt) to fix [Issue #26: Integrate fast ECC support](https://github.com/openpgpjs/openpgpjs/issues/26) into OpenPGP.js.
 

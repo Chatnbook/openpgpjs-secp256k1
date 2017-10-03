@@ -2,24 +2,21 @@
  * @requires crypto/public_key/dsa
  * @requires crypto/public_key/elgamal
  * @requires crypto/public_key/rsa
+ * @requires crypto/public_key/ecdsa
  * @requires crypto/public_key/elliptic
  * @module crypto/public_key
  */
-
-'use strict';
-
-/** @see module:crypto/public_key/rsa */
-import rsa from './rsa.js';
-/** @see module:crypto/public_key/elgamal */
-import elgamal from './elgamal.js';
-/** @see module:crypto/public_key/dsa */
-import dsa from './dsa.js';
-/** @see module:crypto/public_key/elliptic */
-import elliptic from './elliptic';
-
-export default {
-  rsa: rsa,
-  elgamal: elgamal,
-  dsa: dsa,
-  elliptic: elliptic
+module.exports = {
+  /** @see module:crypto/public_key/rsa */
+  rsa: require('./rsa.js'),
+  /** @see module:crypto/public_key/elgamal */
+  elgamal: require('./elgamal.js'),
+  /** @see module:crypto/public_key/dsa */
+  dsa: require('./dsa.js'),
+  /** @see module:crypto/public_key/ecdh */
+  ecdh: require('./ecdh.js'),
+  /** @see module:crypto/public_key/ecdsa */
+  ecdsa: require('./ecdsa.js'),
+  /** @see module:crypto/public_key/elliptic */
+  elliptic: require('./elliptic'),
 };
