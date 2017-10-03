@@ -97,14 +97,14 @@ function get(oid_or_name) {
   throw new Error('Not valid curve');
 }
 
-function generate(curve) {
+function generate(curve, material) {
   return new Promise(function (resolve) {
     curve = get(curve);
-    var keyPair = curve.genKeyPair();
+    var keyPair = (material) ? curve.keyFromPrivate(util.str2bin(material)) : curve.genKeyPair();
     resolve({
       oid: curve.oid,
-      R: new BigInteger(keyPair.getPublic()),
-      r: new BigInteger(keyPair.getPrivate()),
+      R: new BigInteger(keyPair.getPublic()), // .encode()
+      r: new BigInteger(keyPair.getPrivate()), // .toArray()
       hash: curve.hash,
       cipher: curve.cipher
     });

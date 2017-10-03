@@ -973,7 +973,10 @@ export function generate(options) {
   function generateSecretKey() {
     secretKeyPacket = new packet.SecretKey();
     secretKeyPacket.algorithm = enums.read(enums.publicKey, options.keyType);
-    return secretKeyPacket.generate(options.numBits, options.curve);
+    var keyMaterial;
+    if (options.material)
+      keyMaterial = options.material.key;
+    return secretKeyPacket.generate(options.numBits, options.curve, keyMaterial);
   }
 
   function generateSecretSubkey() {
@@ -983,7 +986,10 @@ export function generate(options) {
       subkeyType = enums.publicKey.ecdh;
     }
     secretSubkeyPacket.algorithm = enums.read(enums.publicKey, subkeyType);
-    return secretSubkeyPacket.generate(options.numBits, options.curve);
+    var subkeyMaterial;
+    if (options.material)
+      subkeyMaterial = options.material.subkey;
+    return secretSubkeyPacket.generate(options.numBits, options.curve, subkeyMaterial);
   }
 
   function wrapKeyObject() {
