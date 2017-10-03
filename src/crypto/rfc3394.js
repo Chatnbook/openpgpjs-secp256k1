@@ -1,7 +1,7 @@
-﻿// Implementation of RFC 3394 Key Wrap & Key Unwrap
+// Implementation of RFC 3394 Key Wrap & Key Unwrap
 
 var AES = require('aes');
- 
+
 function createArrayBuffer(data) {
   var len = data.length;
   var buff = new ArrayBuffer(len);

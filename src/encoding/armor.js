@@ -22,9 +22,11 @@
  * @module encoding/armor
  */
 
-var base64 = require('./base64.js'),
-  enums = require('../enums.js'),
-  config = require('../config');
+'use strict';
+
+import base64 from './base64.js';
+import enums from '../enums.js';
+import config from '../config';
 
 /**
  * Finds out which Ascii Armoring type is used. Throws error if unknown type.
@@ -49,14 +51,14 @@ function getType(text) {
   // BEGIN PGP MESSAGE, PART X/Y
   // Used for multi-part messages, where the armor is split amongst Y
   // parts, and this is the Xth part out of Y.
-  if (header[1].match(/MESSAGE, PART \d+\/\d+/)) {
+  if (/MESSAGE, PART \d+\/\d+/.test(header[1])) {
     return enums.armor.multipart_section;
   } else
   // BEGIN PGP MESSAGE, PART X
   // Used for multi-part messages, where this is the Xth part of an
   // unspecified number of parts. Requires the MESSAGE-ID Armor
   // Header to be used.
-  if (header[1].match(/MESSAGE, PART \d+/)) {
+  if (/MESSAGE, PART \d+/.test(header[1])) {
     return enums.armor.multipart_last;
 
   } else
@@ -64,25 +66,25 @@ function getType(text) {
   // Used for detached signatures, OpenPGP/MIME signatures, and
   // cleartext signatures. Note that PGP 2.x uses BEGIN PGP MESSAGE
   // for detached signatures.
-  if (header[1].match(/SIGNED MESSAGE/)) {
+  if (/SIGNED MESSAGE/.test(header[1])) {
     return enums.armor.signed;
 
   } else
   // BEGIN PGP MESSAGE
   // Used for signed, encrypted, or compressed files.
-  if (header[1].match(/MESSAGE/)) {
+  if (/MESSAGE/.test(header[1])) {
     return enums.armor.message;
 
   } else
   // BEGIN PGP PUBLIC KEY BLOCK
   // Used for armoring public keys.
-  if (header[1].match(/PUBLIC KEY BLOCK/)) {
+  if (/PUBLIC KEY BLOCK/.test(header[1])) {
     return enums.armor.public_key;
 
   } else
   // BEGIN PGP PRIVATE KEY BLOCK
   // Used for armoring private keys.
-  if (header[1].match(/PRIVATE KEY BLOCK/)) {
+  if (/PRIVATE KEY BLOCK/.test(header[1])) {
     return enums.armor.private_key;
   }
 }
@@ -115,10 +117,8 @@ function addheader() {
  */
 function getCheckSum(data) {
   var c = createcrc24(data);
-  var str = "" + String.fromCharCode(c >> 16) +
-    String.fromCharCode((c >> 8) & 0xFF) +
-    String.fromCharCode(c & 0xFF);
-  return base64.encode(str);
+  var bytes = new Uint8Array([c >> 16, (c >> 8) & 0xFF, c & 0xFF]);
+  return base64.encode(bytes);
 }
 
 /**
@@ -131,7 +131,7 @@ function getCheckSum(data) {
 function verifyCheckSum(data, checksum) {
   var c = getCheckSum(data);
   var d = checksum;
-  return c[0] == d[0] && c[1] == d[1] && c[2] == d[2] && c[3] == d[3];
+  return c[0] === d[0] && c[1] === d[1] && c[2] === d[2] && c[3] === d[3];
 }
 /**
  * Internal function to calculate a CRC-24 checksum over a given string (data)
@@ -178,27 +178,27 @@ function createcrc24(input) {
   var index = 0;
 
   while ((input.length - index) > 16) {
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 1)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 2)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 3)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 4)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 5)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 6)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 7)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 8)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 9)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 10)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 11)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 12)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 13)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 14)) & 0xff];
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index + 15)) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 1]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 2]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 3]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 4]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 5]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 6]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 7]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 8]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 9]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 10]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 11]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 12]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 13]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 14]) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index + 15]) & 0xff];
     index += 16;
   }
 
   for (var j = index; j < input.length; j++) {
-    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input.charCodeAt(index++)) & 0xff];
+    crc = (crc << 8) ^ crc_table[((crc >> 16) ^ input[index++]) & 0xff];
   }
   return crc & 0xffffff;
 }
@@ -240,8 +240,8 @@ function splitHeaders(text) {
  */
 function verifyHeaders(headers) {
   for (var i = 0; i < headers.length; i++) {
-    if (!headers[i].match(/^(Version|Comment|MessageID|Hash|Charset): .+$/)) {
-      throw new Error('Improperly formatted armor header: ' + headers[i]);;
+    if (!/^(Version|Comment|MessageID|Hash|Charset): .+$/.test(headers[i])) {
+      throw new Error('Improperly formatted armor header: ' + headers[i]);
     }
   }
 }
@@ -293,11 +293,11 @@ function dearmor(text) {
 
   var result, checksum, msg;
 
-  if (text.search(reSplit) != splittext[0].length) {
+  if (text.search(reSplit) !== splittext[0].length) {
     indexBase = 0;
   }
 
-  if (type != 2) {
+  if (type !== 2) {
     msg = splitHeaders(splittext[indexBase]);
     var msg_sum = splitChecksum(msg.body);
 
@@ -316,7 +316,7 @@ function dearmor(text) {
     var sig_sum = splitChecksum(sig.body);
 
     result = {
-      text:  msg.body.replace(/\n$/, '').replace(/\n/g, "\r\n"),
+      text: msg.body.replace(/\n$/, '').replace(/\n/g, "\r\n"),
       data: base64.decode(sig_sum.body),
       headers: msg.headers,
       type: type
@@ -402,7 +402,7 @@ function armor(messagetype, body, partindex, parttotal) {
   return result.join('');
 }
 
-module.exports = {
+export default {
   encode: armor,
   decode: dearmor
 };

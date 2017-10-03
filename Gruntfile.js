@@ -1,6 +1,38 @@
+'use strict';
+
 module.exports = function(grunt) {
 
+  var lintFiles = [
+    'src/config/**/*.js',
+    'src/crypto/cipher/aes.js',
+    'src/crypto/cipher/blowfish.js',
+    'src/crypto/cipher/cast5.js',
+    'src/crypto/cipher/des.js',
+    'src/crypto/cipher/index.js',
+    'src/crypto/hash/index.js',
+    'src/crypto/hash/md5.js',
+    'src/crypto/public_key/dsa.js',
+    'src/crypto/public_key/elgamal.js',
+    'src/crypto/public_key/index.js',
+    'src/crypto/public_key/rsa.js',
+    'src/crypto/public_key/elliptic/*.js',
+    'src/crypto/*.js',
+    'src/encoding/**/*.js',
+    'src/hkp/**/*.js',
+    'src/keyring/**/*.js',
+    'src/packet/**/*.jss',
+    'src/type/**/*.js',
+    'src/worker/**/*.js',
+    'src/*.js',
+  ]; // add more over time ... goal should be 100% coverage
+
   var version = grunt.option('release');
+  var fs = require('fs');
+  var browser_capabilities;
+
+  if (process.env.SELENIUM_BROWSER_CAPABILITIES !== undefined) {
+    browser_capabilities = JSON.parse(process.env.SELENIUM_BROWSER_CAPABILITIES);
+  }
 
   // Project configuration.
   grunt.initConfig({
@@ -11,8 +43,16 @@ module.exports = function(grunt) {
           'dist/openpgp.js': [ './src/index.js' ]
         },
         options: {
-          standalone: 'openpgp',
-          external: [ 'crypto', 'node-localstorage' ]
+          browserifyOptions: {
+            standalone: 'openpgp'
+          },
+          external: [ 'crypto', 'buffer', 'node-localstorage', 'node-fetch' ],
+          transform: [
+            ["babelify", {
+              ignore: ['*.min.js'],
+              presets: ["es2015"]
+            }]
+          ]
         }
       },
       openpgp_debug: {
@@ -20,9 +60,17 @@ module.exports = function(grunt) {
           'dist/openpgp_debug.js': [ './src/index.js' ]
         },
         options: {
-          debug: true,
-          standalone: 'openpgp',
-          external: [ 'crypto', 'node-localstorage' ]
+          browserifyOptions: {
+            debug: true,
+            standalone: 'openpgp'
+          },
+          external: [ 'crypto', 'buffer', 'node-localstorage', 'node-fetch' ],
+          transform: [
+            ["babelify", {
+              ignore: ['*.min.js'],
+              presets: ["es2015"]
+            }]
+          ]
         }
       },
       worker: {
@@ -40,7 +88,7 @@ module.exports = function(grunt) {
           'test/lib/unittests-bundle.js': [ './test/unittests.js' ]
         },
         options: {
-          external: [ 'openpgp', 'crypto', 'node-localstorage']
+          external: [ 'crypto', 'buffer' , 'node-localstorage', 'node-fetch', 'openpgp', '../../dist/openpgp', '../../../dist/openpgp' ]
         }
       }
     },
@@ -78,8 +126,9 @@ module.exports = function(grunt) {
         }
       },
       options: {
-        banner: '/*! OpenPGPjs.org  this is LGPL licensed code, see LICENSE/our website for more information.- v<%= pkg.version %> - ' +
-          '<%= grunt.template.today("yyyy-mm-dd") %> */'
+        banner: '/*! OpenPGP.js v<%= pkg.version %> - ' +
+          '<%= grunt.template.today("yyyy-mm-dd") %> - ' +
+          'this is LGPL licensed code, see LICENSE/our website <%= pkg.homepage %> for more information. */'
       }
     },
     jsbeautifier: {
@@ -93,32 +142,52 @@ module.exports = function(grunt) {
       }
     },
     jshint: {
-      all: ['src/**/*.js']
+      src: lintFiles,
+      build: ['Gruntfile.js', '*.json'],
+      options: {
+        jshintrc: '.jshintrc'
+      }
+    },
+    jscs: {
+      src: lintFiles,
+      build: ['Gruntfile.js'],
+      options: {
+        config: ".jscsrc"
+      }
     },
     jsdoc: {
       dist: {
         src: ['README.md', 'src'],
         options: {
           destination: 'doc',
-          recurse: true,
-          template: 'jsdoc.template'
+          recurse: true
+        }
+      }
+    },
+    mocha_istanbul: {
+      coverage: {
+        src: 'test',
+        options: {
+          root: '.',
+          timeout: 240000,
         }
       }
     },
     mochaTest: {
       unittests: {
         options: {
-          reporter: 'spec'
+          reporter: 'spec',
+          timeout: 120000
         },
         src: [ 'test/unittests.js' ]
       }
     },
     copy: {
-      npm: {
+      browsertest: {
         expand: true,
         flatten: true,
         cwd: 'node_modules/',
-        src: ['mocha/mocha.css', 'mocha/mocha.js', 'chai/chai.js'],
+        src: ['mocha/mocha.css', 'mocha/mocha.js', 'chai/chai.js', 'whatwg-fetch/fetch.js'],
         dest: 'test/lib/'
       },
       zlib: {
@@ -132,12 +201,45 @@ module.exports = function(grunt) {
     connect: {
       dev: {
         options: {
-          port: 8588,
+          port: 3001,
           base: '.',
           keepalive: true
         }
+      },
+      test: {
+        options: {
+          port: 3000,
+          base: '.'
+        }
       }
-    }
+    },
+    'saucelabs-mocha': {
+      all: {
+        options: {
+          username: 'openpgpjs',
+          key: '60ffb656-2346-4b77-81f3-bc435ff4c103',
+          urls: ['http://127.0.0.1:3000/test/unittests.html'],
+          build: process.env.TRAVIS_BUILD_ID,
+          testname: 'Sauce Unit Test for openpgpjs',
+          browsers: [browser_capabilities],
+          public: "public",
+          maxRetries: 3,
+          throttled: 2,
+          pollInterval: 4000,
+          statusCheckAttempts: 200
+        }
+      },
+    },
+    watch: {
+      src: {
+        files: ['src/**/*.js'],
+        tasks: ['browserify:openpgp', 'browserify:worker']
+      },
+      test: {
+        files: ['test/*.js', 'test/crypto/**/*.js', 'test/general/**/*.js', 'test/worker/**/*.js'],
+        tasks: ['browserify:unittests']
+      }
+    },
   });
 
   // Load the plugin(s)
@@ -146,11 +248,15 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-text-replace');
   grunt.loadNpmTasks('grunt-jsbeautifier');
   grunt.loadNpmTasks('grunt-contrib-jshint');
+  grunt.loadNpmTasks('grunt-jscs');
   grunt.loadNpmTasks('grunt-jsdoc');
+  grunt.loadNpmTasks('grunt-mocha-istanbul');
   grunt.loadNpmTasks('grunt-mocha-test');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-connect');
+  grunt.loadNpmTasks('grunt-saucelabs');
+  grunt.loadNpmTasks('grunt-contrib-watch');
 
   grunt.registerTask('set_version', function() {
     if (!version) {
@@ -163,60 +269,33 @@ module.exports = function(grunt) {
     });
 
     patchFile({
+      fileName: 'npm-shrinkwrap.json',
+      version: version
+    });
+
+    patchFile({
       fileName: 'bower.json',
       version: version
     });
   });
 
   function patchFile(options) {
-    var fs = require('fs'),
-      path = './' + options.fileName,
+    var path = './' + options.fileName,
       file = require(path);
 
     if (options.version) {
       file.version = options.version;
     }
 
-    fs.writeFileSync(path, JSON.stringify(file, null, 2));
+    fs.writeFileSync(path, JSON.stringify(file, null, 2) + '\n');
   }
 
-  grunt.registerTask('default', 'Build OpenPGP.js', function() {
-    grunt.task.run(['clean', 'copy:zlib', 'browserify', 'replace', 'uglify', 'npm_pack']);
-    //TODO jshint is not run because of too many discovered issues, once these are addressed it should autorun
-    grunt.log.ok('Before Submitting a Pull Request please also run `grunt jshint`.');
-  });
-
+  // Build tasks
+  grunt.registerTask('default', ['clean', 'copy:zlib', 'browserify', 'replace', 'uglify']);
   grunt.registerTask('documentation', ['jsdoc']);
-
-  // Alias the `mocha_phantomjs` task to run `mocha-phantomjs`
-  grunt.registerTask('mocha_phantomjs', 'mocha-phantomjs', function () {
-    var done = this.async();
-    var mocha = require('child_process').exec('node_modules/mocha-phantomjs/bin/mocha-phantomjs ./test/unittests.html', function (err) {
-      done(err);
-    });
-    mocha.stdout.pipe(process.stdout);
-    mocha.stderr.pipe(process.stderr);
-  });
-
-  // Alias the `npm_pack` task to run `npm pack`
-  grunt.registerTask('npm_pack', 'npm pack', function () {
-    var done = this.async();
-    var npm = require('child_process').exec('npm pack ../', { cwd: 'dist'}, function (err, stdout) {
-      var package = stdout;
-      if (err === null) {
-        var install = require('child_process').exec('npm install dist/' + package, function (err) {
-          done(err);
-        });
-        install.stdout.pipe(process.stdout);
-        install.stderr.pipe(process.stderr);
-      } else {
-        done(err);
-      }
-    });
-    npm.stdout.pipe(process.stdout);
-    npm.stderr.pipe(process.stderr);
-  });
-
   // Test/Dev tasks
-  grunt.registerTask('test', ['copy:npm', 'mochaTest', 'mocha_phantomjs']);
+  grunt.registerTask('test', ['jshint', 'jscs', 'mochaTest']);
+  grunt.registerTask('coverage', ['mocha_istanbul:coverage']);
+  grunt.registerTask('saucelabs', ['default', 'copy:browsertest', 'connect:test', 'saucelabs-mocha']);
+
 };

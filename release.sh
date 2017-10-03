@@ -12,7 +12,7 @@ if [ "$#" -ne 1 ] ; then
 fi
 
 # install dependencies
-rm -rf node_modules/
+rm -rf node_modules
 npm install
 
 # set version
@@ -31,4 +31,4 @@ git push
 git push --tag
 
 # publish to npm
-npm publish
+npm publish #--tag old-version

@@ -10,7 +10,7 @@ describe('Bitcoin OpenPGP interop', function () {
     // bitcoin
     var bitcoin_key = bitcoin.ECPair.makeRandom();
     var wif = bitcoin_key.toWIF();
-    
+
     // openpgp
     var buff = bs58check.decode(wif);
     expect(buff.length).to.equal(34);
@@ -18,14 +18,14 @@ describe('Bitcoin OpenPGP interop', function () {
     var pk = buff.slice(1, -1);
     var material = openpgp.util.bin2str(pk);
     var options = {
-      userId: "userid",
+      userIds: ["userid"],
       curve: "secp256k1",
       material: {
         key: material,
         subkey: material
       }
     };
-    openpgp.generateKeyPair(options).then(function (openpgp_key) {
+    openpgp.generateKey(options).then(function (openpgp_key) {
       expect(openpgp_key).to.exist;
       expect(openpgp_key.key).to.exist;
       expect(openpgp_key.key.primaryKey).to.exist;
@@ -37,9 +37,9 @@ describe('Bitcoin OpenPGP interop', function () {
     // bitcoin
     var seed = crypto.randomBytes(32);
     var master = bitcoin.HDNode.fromSeedBuffer(seed);
-    var child = master.derive(54);
+    var child = master.derive(54); // 42
     var s = child.toBase58();
-        
+
     // openpgp
     var buff = bs58check.decode(s);
     expect(buff.length).to.equal(78);
@@ -48,14 +48,14 @@ describe('Bitcoin OpenPGP interop', function () {
 
     var buff = openpgp.util.bin2str(pk);
     var options = {
-      userId: "userid",
+      userIds: ["userid"],
       curve: "secp256k1",
       material: {
         key: buff,
         subkey: buff
       }
     };
-    openpgp.generateKeyPair(options).then(function (openpgp_key) {
+    openpgp.generateKey(options).then(function (openpgp_key) {
       expect(openpgp_key).to.exist;
       expect(openpgp_key.key).to.exist;
       expect(openpgp_key.key.primaryKey).to.exist;
@@ -64,4 +64,3 @@ describe('Bitcoin OpenPGP interop', function () {
     });
   });
 });
-

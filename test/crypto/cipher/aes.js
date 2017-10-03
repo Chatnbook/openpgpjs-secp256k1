@@ -1,6 +1,6 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../dist/openpgp');
 
 var util = openpgp.util,
   chai = require('chai'),
@@ -8,7 +8,7 @@ var util = openpgp.util,
 
 describe('AES Rijndael cipher test with test vectors from ecb_tbl.txt', function() {
   function test_aes(input, key, output) {
-    var aes = new openpgp.crypto.cipher.aes128(util.bin2str(key));
+    var aes = new openpgp.crypto.cipher.aes128(key);
 
     var result = util.bin2str(aes.encrypt(new Uint8Array(input)));
 

@@ -1,16 +1,16 @@
 // GPG4Browsers - An OpenPGP implementation in javascript
 // Copyright (C) 2011 Recurity Labs GmbH
-// 
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3.0 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -34,23 +34,25 @@
  * @requires type/keyid
  * @requires type/mpi
  * @requires type/ecdh_params
+ * @requires type/ecdh_symkey
  * @requires util
  * @module packet/public_key_encrypted_session_key
  */
 
-module.exports = PublicKeyEncryptedSessionKey;
+'use strict';
 
-var type_keyid = require('../type/keyid.js'),
-  util = require('../util.js'),
-  type_mpi = require('../type/mpi.js'),
-  type_ecdh_params = require('../type/ecdh_params.js'),
-  enums = require('../enums.js'),
-  crypto = require('../crypto');
+import type_keyid from '../type/keyid.js';
+import util from '../util.js';
+import type_mpi from '../type/mpi.js';
+import type_ecdh_params from '../type/ecdh_params.js';
+import type_ecdh_symkey from '../type/ecdh_symkey.js';
+import enums from '../enums.js';
+import crypto from '../crypto';
 
 /**
  * @constructor
  */
-function PublicKeyEncryptedSessionKey() {
+export default function PublicKeyEncryptedSessionKey() {
   this.tag = enums.packet.publicKeyEncryptedSessionKey;
   this.version = 3;
 
@@ -67,7 +69,7 @@ function PublicKeyEncryptedSessionKey() {
 /**
  * Parsing function for a publickey encrypted session key packet (tag 1).
  *
- * @param {String} input Payload of a tag 1 packet
+ * @param {Uint8Array} input Payload of a tag 1 packet
  * @param {Integer} position Position to start reading from the input string
  * @param {Integer} len Length of the packet or the remaining length of
  *            input at position
@@ -75,9 +77,9 @@ function PublicKeyEncryptedSessionKey() {
  */
 PublicKeyEncryptedSessionKey.prototype.read = function (bytes) {
 
-  this.version = bytes.charCodeAt(0);
-  this.publicKeyId.read(bytes.substr(1));
-  this.publicKeyAlgorithm = enums.read(enums.publicKey, bytes.charCodeAt(9));
+  this.version = bytes[0];
+  this.publicKeyId.read(bytes.subarray(1,bytes.length));
+  this.publicKeyAlgorithm = enums.read(enums.publicKey, bytes[9]);
 
   var i = 10;
 
@@ -102,11 +104,12 @@ PublicKeyEncryptedSessionKey.prototype.read = function (bytes) {
 
   for (var j = 0; j < integerCount; j++) {
     var mpi;
-    if (this.publicKeyAlgorithm == 'ecdh' && j == 1)
-      mpi = new type_ecdh_params();
-    else
+    if (this.publicKeyAlgorithm === 'ecdh' && j === 1) {
+      mpi = new type_ecdh_symkey(); // new type_ecdh_params();
+    } else {
       mpi = new type_mpi();
-    i += mpi.read(bytes.substr(i));
+    }
+    i += mpi.read(bytes.subarray(i, bytes.length));
     this.encrypted.push(mpi);
   }
 };
@@ -114,48 +117,31 @@ PublicKeyEncryptedSessionKey.prototype.read = function (bytes) {
 /**
  * Create a string representation of a tag 1 packet
  *
- * @param {String} publicKeyId
- *             The public key id corresponding to publicMPIs key as string
- * @param {Array<module:type/mpi>} publicMPIs
- *            Multiprecision integer objects describing the public key
- * @param {module:enums.publicKey} pubalgo
- *            The corresponding public key algorithm // See {@link http://tools.ietf.org/html/rfc4880#section-9.1|RFC4880 9.1}
- * @param {module:enums.symmetric} symmalgo
- *            The symmetric cipher algorithm used to encrypt the data
- *            within an encrypteddatapacket or encryptedintegrity-
- *            protecteddatapacket
- *            following this packet //See {@link http://tools.ietf.org/html/rfc4880#section-9.2|RFC4880 9.2}
- * @param {String} sessionkey
- *            A string of randombytes representing the session key
- * @return {String} The string representation
+ * @return {Uint8Array} The Uint8Array representation
  */
 PublicKeyEncryptedSessionKey.prototype.write = function () {
 
-  var result = String.fromCharCode(this.version);
-  result += this.publicKeyId.write();
-  result += String.fromCharCode(
-    enums.write(enums.publicKey, this.publicKeyAlgorithm));
+  var arr = [new Uint8Array([this.version]), this.publicKeyId.write(), new Uint8Array([enums.write(enums.publicKey, this.publicKeyAlgorithm)])];
 
   for (var i = 0; i < this.encrypted.length; i++) {
-    result += this.encrypted[i].write();
+    arr.push(this.encrypted[i].write());
   }
 
-  return result;
+  return util.concatUint8Array(arr);
 };
 
 PublicKeyEncryptedSessionKey.prototype.encrypt = function (key) {
   var data = String.fromCharCode(
     enums.write(enums.symmetric, this.sessionKeyAlgorithm));
 
-  data += this.sessionKey;
+  data += util.Uint8Array2str(this.sessionKey);
   var checksum = util.calc_checksum(this.sessionKey);
-  data += util.writeNumber(checksum, 2);
+  data += util.Uint8Array2str(util.writeNumber(checksum, 2));
 
   var mpi;
-  if (this.publicKeyAlgorithm == 'ecdh') {
-    mpi = crypto.pkcs5.addPadding(data);
-  }
-  else {
+  if (this.publicKeyAlgorithm === 'ecdh') {
+    mpi = util.str2Uint8Array(crypto.pkcs5.addPadding(data)); // crypto.pkcs5.addPadding(data);
+  } else {
     mpi = new type_mpi();
     mpi.fromBytes(crypto.pkcs1.eme.encode(
       data,
@@ -186,18 +172,17 @@ PublicKeyEncryptedSessionKey.prototype.decrypt = function (key) {
 
   var checksum;
   var decoded;
-  if (this.publicKeyAlgorithm == 'ecdh') {
+  if (this.publicKeyAlgorithm === 'ecdh') {
     decoded = crypto.pkcs5.removePadding(result);
-    checksum = util.readNumber(decoded.substr(decoded.length - 2));
-  }
-  else {
+    checksum = util.readNumber(util.str2Uint8Array(decoded.substr(decoded.length - 2))); // remove str2Uint8Array
+  } else {
     decoded = crypto.pkcs1.eme.decode(result);
-    checksum = util.readNumber(result.substr(result.length - 2));
+    checksum = util.readNumber(util.str2Uint8Array(result.substr(result.length - 2))); // remove str2Uint8Array
   }
-  
-  key = decoded.substring(1, decoded.length - 2);
 
-  if (checksum != util.calc_checksum(key)) {
+  key = util.str2Uint8Array(decoded.substring(1, decoded.length - 2)); // remove str2Uint8Array
+
+  if (checksum !== util.calc_checksum(key)) {
     throw new Error('Checksum mismatch');
   } else {
     this.sessionKey = key;

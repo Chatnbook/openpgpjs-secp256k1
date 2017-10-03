@@ -1,6 +1,6 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../dist/openpgp');
 
 var util = openpgp.util,
   chai = require('chai'),
@@ -8,7 +8,7 @@ var util = openpgp.util,
 
 it('CAST-128 cipher test with test vectors from RFC2144', function (done) {
 	function test_cast(input, key, output) {
-		var cast5 = new openpgp.crypto.cipher.cast5(util.bin2str(key));
+		var cast5 = new openpgp.crypto.cipher.cast5(key);
 		var result = util.bin2str(cast5.encrypt(input));
 
 		return util.hexstrdump(result) == util.hexstrdump(util.bin2str(output));

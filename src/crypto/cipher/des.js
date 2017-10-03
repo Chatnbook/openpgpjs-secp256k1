@@ -25,6 +25,7 @@
  * @module crypto/cipher/des
  */
 
+'use strict';
 
 function des(keys, message, encrypt, mode, iv, padding) {
   //declaring this locally speeds things up a bit
@@ -80,14 +81,14 @@ function des(keys, message, encrypt, mode, iv, padding) {
 
   //create the 16 or 48 subkeys we will need
   var m = 0,
-    i, j, temp, temp2, right1, right2, left, right, looping;
+    i, j, temp, right1, right2, left, right, looping;
   var cbcleft, cbcleft2, cbcright, cbcright2;
   var endloop, loopinc;
   var len = message.length;
-  var chunk = 0;
+
   //set up the loops for single and triple des
-  var iterations = keys.length == 32 ? 3 : 9; //single or triple des
-  if (iterations == 3) {
+  var iterations = keys.length === 32 ? 3 : 9; //single or triple des
+  if (iterations === 3) {
     looping = encrypt ? new Array(0, 32, 2) : new Array(30, -2, -2);
   } else {
     looping = encrypt ? new Array(0, 32, 2, 62, 30, -2, 64, 96, 2) : new Array(94, 62, -2, 32, 64, 2, 30, -2, -2);
@@ -101,24 +102,22 @@ function des(keys, message, encrypt, mode, iv, padding) {
   }
 
   //store the result here
-  result = "";
-  tempresult = "";
+  var result = new Uint8Array(len);
+  var k = 0;
 
-  if (mode == 1) { //CBC mode
-    cbcleft = (iv.charCodeAt(m++) << 24) | (iv.charCodeAt(m++) << 16) | (iv.charCodeAt(m++) << 8) | iv.charCodeAt(m++);
-    cbcright = (iv.charCodeAt(m++) << 24) | (iv.charCodeAt(m++) << 16) | (iv.charCodeAt(m++) << 8) | iv.charCodeAt(m++);
+  if (mode === 1) { //CBC mode
+    cbcleft = (iv[m++] << 24) | (iv[m++] << 16) | (iv[m++] << 8) | iv[m++];
+    cbcright = (iv[m++] << 24) | (iv[m++] << 16) | (iv[m++] << 8) | iv[m++];
     m = 0;
   }
 
   //loop through each 64 bit chunk of the message
   while (m < len) {
-    left = (message.charCodeAt(m++) << 24) | (message.charCodeAt(m++) << 16) | (message.charCodeAt(m++) << 8) | message
-      .charCodeAt(m++);
-    right = (message.charCodeAt(m++) << 24) | (message.charCodeAt(m++) << 16) | (message.charCodeAt(m++) << 8) |
-      message.charCodeAt(m++);
+    left = (message[m++] << 24) | (message[m++] << 16) | (message[m++] << 8) | message[m++];
+    right = (message[m++] << 24) | (message[m++] << 16) | (message[m++] << 8) | message[m++];
 
     //for Cipher Block Chaining mode, xor the message with the previous result
-    if (mode == 1) {
+    if (mode === 1) {
       if (encrypt) {
         left ^= cbcleft;
         right ^= cbcright;
@@ -154,8 +153,8 @@ function des(keys, message, encrypt, mode, iv, padding) {
     for (j = 0; j < iterations; j += 3) {
       endloop = looping[j + 1];
       loopinc = looping[j + 2];
-      //now go through and perform the encryption or decryption  
-      for (i = looping[j]; i != endloop; i += loopinc) { //for efficiency
+      //now go through and perform the encryption or decryption
+      for (i = looping[j]; i !== endloop; i += loopinc) { //for efficiency
         right1 = right ^ keys[i];
         right2 = ((right >>> 4) | (right << 28)) ^ keys[i + 1];
         //the result is attained by passing these bytes through the S selection functions
@@ -192,7 +191,7 @@ function des(keys, message, encrypt, mode, iv, padding) {
     left ^= (temp << 4);
 
     //for Cipher Block Chaining mode, xor the message with the previous result
-    if (mode == 1) {
+    if (mode === 1) {
       if (encrypt) {
         cbcleft = left;
         cbcright = right;
@@ -201,19 +200,16 @@ function des(keys, message, encrypt, mode, iv, padding) {
         right ^= cbcright2;
       }
     }
-    tempresult += String.fromCharCode((left >>> 24), ((left >>> 16) & 0xff), ((left >>> 8) & 0xff), (left & 0xff), (
-      right >>> 24), ((right >>> 16) & 0xff), ((right >>> 8) & 0xff), (right & 0xff));
 
-    chunk += 8;
-    if (chunk == 512) {
-      result += tempresult;
-      tempresult = "";
-      chunk = 0;
-    }
+    result[k++] = (left >>> 24);
+    result[k++] = ((left >>> 16) & 0xff);
+    result[k++] = ((left >>> 8) & 0xff);
+    result[k++] = (left & 0xff);
+    result[k++] = (right >>> 24);
+    result[k++] = ((right >>> 16) & 0xff);
+    result[k++] = ((right >>> 8) & 0xff);
+    result[k++] = (right & 0xff);
   } //for every 8 characters, or 64 bits in the message
-
-  //return the result as an array
-  result += tempresult;
 
   //only remove padding if decrypting - note that you need to use the same padding option for both encrypt and decrypt
   if (!encrypt) {
@@ -231,33 +227,33 @@ function des(keys, message, encrypt, mode, iv, padding) {
 
 function des_createKeys(key) {
   //declaring this locally speeds things up a bit
-  pc2bytes0 = new Array(0, 0x4, 0x20000000, 0x20000004, 0x10000, 0x10004, 0x20010000, 0x20010004, 0x200, 0x204,
+  var pc2bytes0 = new Array(0, 0x4, 0x20000000, 0x20000004, 0x10000, 0x10004, 0x20010000, 0x20010004, 0x200, 0x204,
     0x20000200, 0x20000204, 0x10200, 0x10204, 0x20010200, 0x20010204);
-  pc2bytes1 = new Array(0, 0x1, 0x100000, 0x100001, 0x4000000, 0x4000001, 0x4100000, 0x4100001, 0x100, 0x101, 0x100100,
+  var pc2bytes1 = new Array(0, 0x1, 0x100000, 0x100001, 0x4000000, 0x4000001, 0x4100000, 0x4100001, 0x100, 0x101, 0x100100,
     0x100101, 0x4000100, 0x4000101, 0x4100100, 0x4100101);
-  pc2bytes2 = new Array(0, 0x8, 0x800, 0x808, 0x1000000, 0x1000008, 0x1000800, 0x1000808, 0, 0x8, 0x800, 0x808,
+  var pc2bytes2 = new Array(0, 0x8, 0x800, 0x808, 0x1000000, 0x1000008, 0x1000800, 0x1000808, 0, 0x8, 0x800, 0x808,
     0x1000000, 0x1000008, 0x1000800, 0x1000808);
-  pc2bytes3 = new Array(0, 0x200000, 0x8000000, 0x8200000, 0x2000, 0x202000, 0x8002000, 0x8202000, 0x20000, 0x220000,
+  var pc2bytes3 = new Array(0, 0x200000, 0x8000000, 0x8200000, 0x2000, 0x202000, 0x8002000, 0x8202000, 0x20000, 0x220000,
     0x8020000, 0x8220000, 0x22000, 0x222000, 0x8022000, 0x8222000);
-  pc2bytes4 = new Array(0, 0x40000, 0x10, 0x40010, 0, 0x40000, 0x10, 0x40010, 0x1000, 0x41000, 0x1010, 0x41010, 0x1000,
+  var pc2bytes4 = new Array(0, 0x40000, 0x10, 0x40010, 0, 0x40000, 0x10, 0x40010, 0x1000, 0x41000, 0x1010, 0x41010, 0x1000,
     0x41000, 0x1010, 0x41010);
-  pc2bytes5 = new Array(0, 0x400, 0x20, 0x420, 0, 0x400, 0x20, 0x420, 0x2000000, 0x2000400, 0x2000020, 0x2000420,
+  var pc2bytes5 = new Array(0, 0x400, 0x20, 0x420, 0, 0x400, 0x20, 0x420, 0x2000000, 0x2000400, 0x2000020, 0x2000420,
     0x2000000, 0x2000400, 0x2000020, 0x2000420);
-  pc2bytes6 = new Array(0, 0x10000000, 0x80000, 0x10080000, 0x2, 0x10000002, 0x80002, 0x10080002, 0, 0x10000000,
+  var pc2bytes6 = new Array(0, 0x10000000, 0x80000, 0x10080000, 0x2, 0x10000002, 0x80002, 0x10080002, 0, 0x10000000,
     0x80000, 0x10080000, 0x2, 0x10000002, 0x80002, 0x10080002);
-  pc2bytes7 = new Array(0, 0x10000, 0x800, 0x10800, 0x20000000, 0x20010000, 0x20000800, 0x20010800, 0x20000, 0x30000,
+  var pc2bytes7 = new Array(0, 0x10000, 0x800, 0x10800, 0x20000000, 0x20010000, 0x20000800, 0x20010800, 0x20000, 0x30000,
     0x20800, 0x30800, 0x20020000, 0x20030000, 0x20020800, 0x20030800);
-  pc2bytes8 = new Array(0, 0x40000, 0, 0x40000, 0x2, 0x40002, 0x2, 0x40002, 0x2000000, 0x2040000, 0x2000000, 0x2040000,
+  var pc2bytes8 = new Array(0, 0x40000, 0, 0x40000, 0x2, 0x40002, 0x2, 0x40002, 0x2000000, 0x2040000, 0x2000000, 0x2040000,
     0x2000002, 0x2040002, 0x2000002, 0x2040002);
-  pc2bytes9 = new Array(0, 0x10000000, 0x8, 0x10000008, 0, 0x10000000, 0x8, 0x10000008, 0x400, 0x10000400, 0x408,
+  var pc2bytes9 = new Array(0, 0x10000000, 0x8, 0x10000008, 0, 0x10000000, 0x8, 0x10000008, 0x400, 0x10000400, 0x408,
     0x10000408, 0x400, 0x10000400, 0x408, 0x10000408);
-  pc2bytes10 = new Array(0, 0x20, 0, 0x20, 0x100000, 0x100020, 0x100000, 0x100020, 0x2000, 0x2020, 0x2000, 0x2020,
+  var pc2bytes10 = new Array(0, 0x20, 0, 0x20, 0x100000, 0x100020, 0x100000, 0x100020, 0x2000, 0x2020, 0x2000, 0x2020,
     0x102000, 0x102020, 0x102000, 0x102020);
-  pc2bytes11 = new Array(0, 0x1000000, 0x200, 0x1000200, 0x200000, 0x1200000, 0x200200, 0x1200200, 0x4000000, 0x5000000,
+  var pc2bytes11 = new Array(0, 0x1000000, 0x200, 0x1000200, 0x200000, 0x1200000, 0x200200, 0x1200200, 0x4000000, 0x5000000,
     0x4000200, 0x5000200, 0x4200000, 0x5200000, 0x4200200, 0x5200200);
-  pc2bytes12 = new Array(0, 0x1000, 0x8000000, 0x8001000, 0x80000, 0x81000, 0x8080000, 0x8081000, 0x10, 0x1010,
+  var pc2bytes12 = new Array(0, 0x1000, 0x8000000, 0x8001000, 0x80000, 0x81000, 0x8080000, 0x8081000, 0x10, 0x1010,
     0x8000010, 0x8001010, 0x80010, 0x81010, 0x8080010, 0x8081010);
-  pc2bytes13 = new Array(0, 0x4, 0x100, 0x104, 0, 0x4, 0x100, 0x104, 0x1, 0x5, 0x101, 0x105, 0x1, 0x5, 0x101, 0x105);
+  var pc2bytes13 = new Array(0, 0x4, 0x100, 0x104, 0, 0x4, 0x100, 0x104, 0x1, 0x5, 0x101, 0x105, 0x1, 0x5, 0x101, 0x105);
 
   //how many iterations (1 for des, 3 for triple des)
   var iterations = key.length > 8 ? 3 : 1; //changed by Paul 16/6/2007 to use Triple DES for 9+ byte keys
@@ -271,8 +267,8 @@ function des_createKeys(key) {
     temp;
 
   for (var j = 0; j < iterations; j++) { //either 1 or 3 iterations
-    left = (key.charCodeAt(m++) << 24) | (key.charCodeAt(m++) << 16) | (key.charCodeAt(m++) << 8) | key.charCodeAt(m++);
-    right = (key.charCodeAt(m++) << 24) | (key.charCodeAt(m++) << 16) | (key.charCodeAt(m++) << 8) | key.charCodeAt(m++);
+    var left = (key[m++] << 24) | (key[m++] << 16) | (key[m++] << 8) | key[m++];
+    var right = (key[m++] << 24) | (key[m++] << 16) | (key[m++] << 8) | key[m++];
 
     temp = ((left >>> 4) ^ right) & 0x0f0f0f0f;
     right ^= temp;
@@ -303,7 +299,7 @@ function des_createKeys(key) {
     right = temp;
 
     //now go through and perform these shifts on the left and right keys
-    for (i = 0; i < shifts.length; i++) {
+    for (var i = 0; i < shifts.length; i++) {
       //shift the keys either one or two bits to the left
       if (shifts[i]) {
         left = (left << 2) | (left >>> 26);
@@ -317,7 +313,7 @@ function des_createKeys(key) {
 
       //now apply PC-2, in such a way that E is easier when encrypting or decrypting
       //this conversion will look like PC-2 except only the last 6 bits of each byte are used
-      //rather than 48 consecutive bits and the order of lines will be according to 
+      //rather than 48 consecutive bits and the order of lines will be according to
       //how the S selection functions will be applied: S2, S4, S6, S8, S1, S3, S5, S7
       lefttemp = pc2bytes0[left >>> 28] | pc2bytes1[(left >>> 24) & 0xf] | pc2bytes2[(left >>> 20) & 0xf] | pc2bytes3[(
         left >>> 16) & 0xf] | pc2bytes4[(left >>> 12) & 0xf] | pc2bytes5[(left >>> 8) & 0xf] | pc2bytes6[(left >>> 4) &
@@ -337,31 +333,56 @@ function des_createKeys(key) {
 
 function des_addPadding(message, padding) {
   var padLength = 8 - (message.length % 8);
-  if ((padding == 2) && (padLength < 8)) { //pad the message with spaces
-    message += "        ".substr(0, padLength);
-  } else if (padding == 1) { //PKCS7 padding
-    message += String.fromCharCode(padLength, padLength, padLength, padLength, padLength, padLength, padLength,
-      padLength).substr(0, padLength);
+
+  var pad;
+  if (padding === 2 && (padLength < 8)) { //pad the message with spaces
+    pad = " ".charCodeAt(0);
+  } else if (padding === 1) { //PKCS7 padding
+    pad = padLength;
   } else if (!padding && (padLength < 8)) { //pad the message out with null bytes
-    message += "\0\0\0\0\0\0\0\0".substr(0, padLength);
+    pad = 0;
+  } else if (padLength === 8) {
+    return message;
   }
-  return message;
+  else {
+    throw new Error('des: invalid padding');
+  }
+
+  var paddedMessage = new Uint8Array(message.length + padLength);
+  for(var i = 0; i < message.length; i++) {
+    paddedMessage[i] = message[i];
+  }
+  for(var j = 0; j < padLength; j++) {
+    paddedMessage[message.length + j] = pad;
+  }
+
+  return paddedMessage;
 }
 
 function des_removePadding(message, padding) {
-  if (padding == 2) { // space padded
-    message = message.replace(/ *$/g, "");
-  } else if (padding == 1) { // PKCS7
-    var padCount = message.charCodeAt(message.length - 1);
-    message = message.substr(0, message.length - padCount);
+  var padLength = null;
+  var pad;
+  if (padding === 2) { // space padded
+    pad = " ".charCodeAt(0);
+  } else if (padding === 1) { // PKCS7
+    padLength = message[message.length - 1];
   } else if (!padding) { // null padding
-    message = message.replace(/\0*$/g, "");
+    pad = 0;
   }
-  return message;
+  else {
+    throw new Error('des: invalid padding');
+  }
+
+  if(!padLength) {
+    padLength = 1;
+    while(message[message.length - padLength] === pad) {
+      padLength++;
+    }
+    padLength--;
+  }
+
+  return message.subarray(0, message.length - padLength);
 }
-
-
-var util = require('../../util.js');
 
 // added by Recurity Labs
 
@@ -369,15 +390,15 @@ function Des(key) {
   this.key = [];
 
   for (var i = 0; i < 3; i++) {
-    this.key.push(key.substr(i * 8, 8));
+    this.key.push(new Uint8Array(key.subarray(i * 8, (i * 8) + 8)));
   }
 
   this.encrypt = function(block) {
-    return util.str2bin(des(des_createKeys(this.key[2]),
+    return des(des_createKeys(this.key[2]),
       des(des_createKeys(this.key[1]),
       des(des_createKeys(this.key[0]),
-      util.bin2str(block), true, 0, null, null),
-      false, 0, null, null), true, 0, null, null));
+      block, true, 0, null, null),
+      false, 0, null, null), true, 0, null, null);
   };
 }
 
@@ -392,16 +413,16 @@ function OriginalDes(key) {
 
   this.encrypt = function(block, padding) {
     var keys = des_createKeys(this.key);
-    return util.str2bin(des(keys, util.bin2str(block), true, 0, null, padding));
+    return des(keys, block, true, 0, null, padding);
   };
 
   this.decrypt = function(block, padding) {
     var keys = des_createKeys(this.key);
-    return util.str2bin(des(keys, util.bin2str(block), false, 0, null, padding));
+    return des(keys, block, false, 0, null, padding);
   };
 }
 
-module.exports = {
+export default {
   /** @static */
   des: Des,
   /** @static */

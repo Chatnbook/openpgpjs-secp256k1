@@ -1,16 +1,16 @@
 // GPG4Browsers - An OpenPGP implementation in javascript
 // Copyright (C) 2011 Recurity Labs GmbH
-// 
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3.0 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -28,20 +28,22 @@
  * @module packet/symmetrically_encrypted
  */
 
-module.exports = SymmetricallyEncrypted;
+'use strict';
 
-var crypto = require('../crypto'),
-  enums = require('../enums.js');
+import crypto from '../crypto';
+import enums from '../enums.js';
+import config from '../config';
 
 /**
  * @constructor
  */
-function SymmetricallyEncrypted() {
+export default function SymmetricallyEncrypted() {
   this.tag = enums.packet.symmetricallyEncrypted;
   this.encrypted = null;
-  /** Decrypted packets contained within. 
+  /** Decrypted packets contained within.
    * @type {module:packet/packetlist} */
   this.packets =  null;
+  this.ignore_mdc_error = config.ignore_mdc_error;
 }
 
 SymmetricallyEncrypted.prototype.read = function (bytes) {
@@ -62,15 +64,23 @@ SymmetricallyEncrypted.prototype.write = function () {
  *            algorithm
  */
 SymmetricallyEncrypted.prototype.decrypt = function (sessionKeyAlgorithm, key) {
-  var decrypted = crypto.cfb.decrypt(
-    sessionKeyAlgorithm, key, this.encrypted, true);
+  var decrypted = crypto.cfb.decrypt(sessionKeyAlgorithm, key, this.encrypted, true);
+  // for modern cipher (blocklength != 64 bit, except for Twofish) MDC is required
+  if (!this.ignore_mdc_error &&
+      (sessionKeyAlgorithm === 'aes128' ||
+       sessionKeyAlgorithm === 'aes192' ||
+       sessionKeyAlgorithm === 'aes256')) {
+    throw new Error('Decryption failed due to missing MDC in combination with modern cipher.');
+  }
+  this.packets.read(decrypted);
 
-  this.packets.read(decrypted.join(''))
+  return Promise.resolve();
 };
 
 SymmetricallyEncrypted.prototype.encrypt = function (algo, key) {
   var data = this.packets.write();
 
-  this.encrypted = crypto.cfb.encrypt(
-    crypto.getPrefixRandom(algo), algo, data, key, true);
+  this.encrypted = crypto.cfb.encrypt(crypto.getPrefixRandom(algo), algo, data, key, true);
+
+  return Promise.resolve();
 };

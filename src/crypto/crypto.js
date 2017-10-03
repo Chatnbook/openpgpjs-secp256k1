@@ -21,7 +21,10 @@
  * @requires crypto/cipher
  * @requires crypto/public_key
  * @requires crypto/random
+ * @requires type/ecdh_symkey
+ * @requires type/kdf_params
  * @requires type/mpi
+ * @requires type/oid
  * @module crypto/crypto
  */
 
@@ -34,7 +37,25 @@ var random = require('./random.js'),
   type_ecdh_params = require('../type/ecdh_params.js'),
   type_kdf_params = require('../type/kdf_params.js');
 
-module.exports = {
+import random from './random.js';
+import cipher from './cipher';
+import publicKey from './public_key';
+import type_mpi from '../type/mpi.js';
+import type_oid from '../type/oid.js';
+import type_ecdh_symkey from '../type/ecdh_symkey.js';
+import type_kdf_params from '../type/kdf_params.js';
+
+function BigInteger2mpi(bn) {
+  var mpi = new type_mpi();
+  mpi.fromBigInteger(bn);
+  return mpi;
+}
+
+function mapResult(result) {
+  return result.map(BigInteger2mpi);
+}
+
+export default {
   /**
    * Encrypts data using the specified public key multiprecision integers
    * and the specified algorithm.
@@ -65,18 +86,21 @@ module.exports = {
           return mapResult(elgamal.encrypt(m, g, p, y));
 
         case 'ecdh':
-          var ecdh = new publicKey.ecdh();
+          // var ecdh = new publicKey.ecdh();
+          var ecdh = publicKey.elliptic.ecdh;
           var curve = publicMPIs[0];
-          var kdfParams = publicMPIs[2];
+          var kdf_params = publicMPIs[2];
           var R = publicMPIs[1].toBigInteger();
-          var res = ecdh.encrypt(algo, curve, kdfParams, data, R, util.hex2bin(fingerprint));
-          return mapResult([res.V]).concat([new type_ecdh_params(res.C)]);
+          // var res = ecdh.encrypt(algo, curve, kdfParams, data, R, util.hex2bin(fingerprint));
+          // return mapResult([res.V]).concat([new type_ecdh_params(res.C)]);
+          var res = ecdh.encrypt(curve.oid, kdf_params.cipher, kdf_params.hash, data, R, fingerprint);
+          return [BigInteger2mpi(res.V), new type_ecdh_symkey(res.C)];
 
         default:
           return [];
       }
     })();
-    
+
     return result;
 
     function mapResult(result) {
@@ -128,13 +152,15 @@ module.exports = {
           return elgamal.decrypt(c1, c2, p, x);
 
         case 'ecdh':
-          var ecdh = new publicKey.ecdh();
+          // var ecdh = new publicKey.ecdh();
+          var ecdh = publicKey.elliptic.ecdh;
           var curve = keyIntegers[0];
-          var kdfParams = keyIntegers[2];
+          var kdf_params = keyIntegers[2];
           var V = dataIntegers[0].toBigInteger();
           var C = dataIntegers[1].data;
           var r = keyIntegers[3].toBigInteger();
-          return ecdh.decrypt(algo, curve, kdfParams, V, C, r, util.hex2bin(fingerprint));
+          // return ecdh.decrypt(algo, curve, kdfParams, V, C, r, util.hex2bin(fingerprint));
+          return ecdh.decrypt(curve.oid, kdf_params.cipher, kdf_params.hash, V, C, r, fingerprint);
 
         default:
           return null;
@@ -242,21 +268,29 @@ module.exports = {
         });
 
       case 'ecdsa':
-        var ecdsa = new publicKey.ecdsa();
+        /* var ecdsa = new publicKey.ecdsa();
         return ecdsa.generate(curve, bits, material).then(function (key) {
-          var output = [];
-          output.push(new type_oid(key.oid));
-          var mpi = new type_mpi();
-          mpi.fromBigInteger(key.R);
-          output.push(mpi);
-          mpi = new type_mpi();
-          mpi.fromBigInteger(key.r);
-          output.push(mpi);
-          return output;
+            var output = [];
+            output.push(new type_oid(key.oid));
+            var mpi = new type_mpi();
+            mpi.fromBigInteger(key.R);
+            output.push(mpi);
+            mpi = new type_mpi();
+            mpi.fromBigInteger(key.r);
+            output.push(mpi);
+            return output;
+        }); */
+
+        return publicKey.elliptic.generate(curve, material).then(function (key) {
+          return [
+            new type_oid(key.oid),
+            BigInteger2mpi(key.R),
+            BigInteger2mpi(key.r)
+          ];
         });
 
       case 'ecdh':
-        var ecdh = new publicKey.ecdh();
+        /* var ecdh = new publicKey.ecdh();
         return ecdh.generate(curve, bits, material).then(function (key) {
           var output = [];
           output.push(new type_oid(key.oid));
@@ -267,19 +301,18 @@ module.exports = {
           mpi = new type_mpi();
           mpi.fromBigInteger(key.r);
           output.push(mpi);
-          return output;
+          return output; */
+        return publicKey.elliptic.generate(curve, material).then(function (key) {
+          return [
+            new type_oid(key.oid),
+            BigInteger2mpi(key.R),
+            new type_kdf_params(key.hash, key.cipher),
+            BigInteger2mpi(key.r)
+          ];
         });
 
       default:
         throw new Error('Unsupported algorithm for key generation.');
-    }
-
-    function mapResult(result) {
-      return result.map(function(bn) {
-        var mpi = new type_mpi();
-        mpi.fromBigInteger(bn);
-        return mpi;
-      });
     }
   },
 
@@ -287,7 +320,7 @@ module.exports = {
   /**
    * generate random byte prefix as string for the specified algorithm
    * @param {module:enums.symmetric} algo Algorithm to use (see {@link http://tools.ietf.org/html/rfc4880#section-9.2|RFC 4880 9.2})
-   * @return {String} Random bytes with length equal to the block
+   * @return {Uint8Array} Random bytes with length equal to the block
    * size of the cipher
    */
   getPrefixRandom: function(algo) {
@@ -297,7 +330,7 @@ module.exports = {
   /**
    * Generating a session key for the specified symmetric algorithm
    * @param {module:enums.symmetric} algo Algorithm to use (see {@link http://tools.ietf.org/html/rfc4880#section-9.2|RFC 4880 9.2})
-   * @return {String} Random bytes as a string to be used as a key
+   * @return {Uint8Array} Random bytes as a string to be used as a key
    */
   generateSessionKey: function(algo) {
     return random.getRandomBytes(cipher[algo].keySize);

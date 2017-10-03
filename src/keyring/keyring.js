@@ -1,16 +1,16 @@
 // GPG4Browsers - An OpenPGP implementation in javascript
 // Copyright (C) 2011 Recurity Labs GmbH
-// 
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3.0 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -23,20 +23,19 @@
  * @module keyring/keyring
  */
 
-var enums = require('../enums.js'),
-  keyModule = require('../key.js'),
-  util = require('../util.js');
+'use strict';
 
-module.exports = Keyring;
+import * as keyModule from '../key.js';
+import LocalStore from './localstore.js';
 
-  /**
+/**
  * Initialization routine for the keyring. This method reads the
  * keyring from HTML5 local storage and initializes this instance.
  * @constructor
  * @param {class} [storeHandler] class implementing load() and store() methods
  */
-function Keyring(storeHandler) {
-  this.storeHandler = storeHandler || new (require('./localstore.js'))();
+export default function Keyring(storeHandler) {
+  this.storeHandler = storeHandler || new LocalStore();
   this.publicKeys = new KeyArray(this.storeHandler.loadPublic());
   this.privateKeys = new KeyArray(this.storeHandler.loadPrivate());
 }
@@ -123,12 +122,14 @@ KeyArray.prototype.getForAddress = function(email) {
  * @return {Boolean} True if the email address is defined in the specified key
  */
 function emailCheck(email, key) {
+  email = email.toLowerCase();
   // escape email before using in regular expression
-  email = email.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  var emailRegex = new RegExp('<' + email + '>');
-  var keyEmails = key.getUserIds();
-  for (var i = 0; i < keyEmails.length; i++) {
-    if (emailRegex.test(keyEmails[i].toLowerCase())) {
+  var emailEsc = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  var emailRegex = new RegExp('<' + emailEsc + '>');
+  var userIds = key.getUserIds();
+  for (var i = 0; i < userIds.length; i++) {
+    var userId = userIds[i].toLowerCase();
+    if (email === userId || emailRegex.test(userId)) {
       return true;
     }
   }

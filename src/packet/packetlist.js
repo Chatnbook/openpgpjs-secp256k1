@@ -2,22 +2,24 @@
  * This class represents a list of openpgp packets.
  * Take care when iterating over it - the packets themselves
  * are stored as numerical indices.
+ * @requires util
  * @requires enums
  * @requires packet
  * @requires packet/packet
  * @module packet/packetlist
  */
 
-module.exports = Packetlist;
+'use strict';
 
-var packetParser = require('./packet.js'),
-  packets = require('./all_packets.js'),
-  enums = require('../enums.js');
+import util from '../util';
+import packetParser from './packet.js';
+import * as packets from './all_packets.js';
+import enums from '../enums.js';
 
 /**
  * @constructor
  */
-function Packetlist() {
+export default function Packetlist() {
   /** The number of packets contained within the list.
    * @readonly
    * @type {Integer} */
@@ -25,7 +27,7 @@ function Packetlist() {
 }
 /**
  * Reads a stream of binary data and interprents it as a list of packets.
- * @param {String} A binary string of bytes.
+ * @param {Uint8Array} A Uint8Array of bytes.
  */
 Packetlist.prototype.read = function (bytes) {
   var i = 0;
@@ -34,30 +36,36 @@ Packetlist.prototype.read = function (bytes) {
     var parsed = packetParser.read(bytes, i, bytes.length - i);
     i = parsed.offset;
 
-    var tag = enums.read(enums.packet, parsed.tag);
-    var packet = packets.newPacketFromTag(tag);
-
-    this.push(packet);
-
-    packet.read(parsed.packet);
+    var pushed = false;
+    try {
+      var tag = enums.read(enums.packet, parsed.tag);
+      var packet = packets.newPacketFromTag(tag);
+      this.push(packet);
+      pushed = true;
+      packet.read(parsed.packet);
+    } catch(e) {
+      if (pushed) {
+        this.pop(); // drop unsupported packet
+      }
+    }
   }
 };
 
 /**
  * Creates a binary representation of openpgp objects contained within the
  * class instance.
- * @returns {String} A binary string of bytes containing valid openpgp packets.
+ * @returns {Uint8Array} A Uint8Array containing valid openpgp packets.
  */
 Packetlist.prototype.write = function () {
-  var bytes = '';
+  var arr = [];
 
   for (var i = 0; i < this.length; i++) {
     var packetbytes = this[i].write();
-    bytes += packetParser.writeHeader(this[i].tag, packetbytes.length);
-    bytes += packetbytes;
+    arr.push(packetParser.writeHeader(this[i].tag, packetbytes.length));
+    arr.push(packetbytes);
   }
 
-  return bytes;
+  return util.concatUint8Array(arr);
 };
 
 /**
@@ -65,12 +73,30 @@ Packetlist.prototype.write = function () {
  * writing to packetlist[i] directly will result in an error.
  */
 Packetlist.prototype.push = function (packet) {
-  if (!packet) return;
+  if (!packet) {
+    return;
+  }
 
   packet.packets = packet.packets || new Packetlist();
 
   this[this.length] = packet;
   this.length++;
+};
+
+/**
+ * Remove a packet from the list and return it.
+ * @return {Object}   The packet that was removed
+ */
+Packetlist.prototype.pop = function() {
+  if (this.length === 0) {
+    return;
+  }
+
+  var packet = this[this.length - 1];
+  delete this[this.length - 1];
+  this.length--;
+
+  return packet;
 };
 
 /**
@@ -97,8 +123,9 @@ Packetlist.prototype.filterByTag = function () {
   var filtered = new Packetlist();
   var that = this;
 
+  function handle(packetType) {return that[i].tag === packetType;}
   for (var i = 0; i < this.length; i++) {
-    if (args.some(function(packetType) {return that[i].tag == packetType;})) {
+    if (args.some(handle)) {
       filtered.push(this[i]);
     }
   }
@@ -129,7 +156,9 @@ Packetlist.prototype.findPacket = function (type) {
     for (var i = 0; i < this.length; i++) {
       if (this[i].packets.length) {
         found = this[i].packets.findPacket(type);
-        if (found) return found;
+        if (found) {
+          return found;
+        }
       }
     }
   }
@@ -143,8 +172,10 @@ Packetlist.prototype.indexOfTag = function () {
   var args = Array.prototype.slice.call(arguments);
   var tagIndex = [];
   var that = this;
+
+  function handle(packetType) {return that[i].tag === packetType;}
   for (var i = 0; i < this.length; i++) {
-    if (args.some(function(packetType) {return that[i].tag == packetType;})) {
+    if (args.some(handle)) {
       tagIndex.push(i);
     }
   }
@@ -182,7 +213,7 @@ Packetlist.prototype.concat = function (packetlist) {
  * @param {Object} packetClone packetlist clone
  * @returns {Object} new packetlist object with data from packetlist clone
  */
-module.exports.fromStructuredClone = function(packetlistClone) {
+Packetlist.fromStructuredClone = function(packetlistClone) {
   var packetlist = new Packetlist();
   for (var i = 0; i < packetlistClone.length; i++) {
     packetlist.push(packets.fromStructuredClone(packetlistClone[i]));

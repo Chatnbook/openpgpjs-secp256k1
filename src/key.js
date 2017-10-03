@@ -25,11 +25,11 @@
 
 'use strict';
 
-var packet = require('./packet'),
-  enums = require('./enums.js'),
-  armor = require('./encoding/armor.js'),
-  config = require('./config'),
-  util = require('./util');
+import packet from './packet';
+import enums from './enums.js';
+import armor from './encoding/armor.js';
+import config from './config';
+import util from './util';
 
 /**
  * @class
@@ -38,7 +38,7 @@ var packet = require('./packet'),
  * @param  {module:packet/packetlist} packetlist The packets that form this key
  */
 
-function Key(packetlist) {
+export function Key(packetlist) {
   if (!(this instanceof Key)) {
     return new Key(packetlist);
   }
@@ -70,13 +70,17 @@ Key.prototype.packetlist2structure = function(packetlist) {
       case enums.packet.userid:
       case enums.packet.userAttribute:
         user = new User(packetlist[i]);
-        if (!this.users) this.users = [];
+        if (!this.users) {
+          this.users = [];
+        }
         this.users.push(user);
         break;
       case enums.packet.publicSubkey:
       case enums.packet.secretSubkey:
         user = null;
-        if (!this.subKeys) this.subKeys = [];
+        if (!this.subKeys) {
+          this.subKeys = [];
+        }
         subKey = new SubKey(packetlist[i]);
         this.subKeys.push(subKey);
         break;
@@ -91,24 +95,34 @@ Key.prototype.packetlist2structure = function(packetlist) {
               continue;
             }
             if (packetlist[i].issuerKeyId.equals(primaryKeyId)) {
-              if (!user.selfCertifications) user.selfCertifications = [];
+              if (!user.selfCertifications) {
+                user.selfCertifications = [];
+              }
               user.selfCertifications.push(packetlist[i]);
             } else {
-              if (!user.otherCertifications) user.otherCertifications = [];
+              if (!user.otherCertifications) {
+                user.otherCertifications = [];
+              }
               user.otherCertifications.push(packetlist[i]);
             }
             break;
           case enums.signature.cert_revocation:
             if (user) {
-              if (!user.revocationCertifications) user.revocationCertifications = [];
+              if (!user.revocationCertifications) {
+                user.revocationCertifications = [];
+              }
               user.revocationCertifications.push(packetlist[i]);
             } else {
-              if (!this.directSignatures) this.directSignatures = [];
+              if (!this.directSignatures) {
+                this.directSignatures = [];
+              }
               this.directSignatures.push(packetlist[i]);
             }
             break;
           case enums.signature.key:
-            if (!this.directSignatures) this.directSignatures = [];
+            if (!this.directSignatures) {
+              this.directSignatures = [];
+            }
             this.directSignatures.push(packetlist[i]);
             break;
           case enums.signature.subkey_binding:
@@ -217,7 +231,7 @@ Key.prototype.getUserIds = function() {
   var userids = [];
   for (var i = 0; i < this.users.length; i++) {
     if (this.users[i].userId) {
-      userids.push(this.users[i].userId.write());
+      userids.push(util.Uint8Array2str(this.users[i].userId.write()));
     }
   }
   return userids;
@@ -228,7 +242,7 @@ Key.prototype.getUserIds = function() {
  * @return {Boolean}
  */
 Key.prototype.isPublic = function() {
-  return this.primaryKey.tag == enums.packet.publicKey;
+  return this.primaryKey.tag === enums.packet.publicKey;
 };
 
 /**
@@ -236,7 +250,7 @@ Key.prototype.isPublic = function() {
  * @return {Boolean}
  */
 Key.prototype.isPrivate = function() {
-  return this.primaryKey.tag == enums.packet.secretKey;
+  return this.primaryKey.tag === enums.packet.secretKey;
 };
 
 /**
@@ -321,10 +335,10 @@ function isValidEncryptionKeyPacket(keyPacket, signature) {
 }
 
 function isValidSigningKeyPacket(keyPacket, signature) {
-  return (keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.dsa) ||
-          keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.rsa_sign) ||
-          keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.rsa_encrypt_sign) ||
-          keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.ecdsa)) &&
+  return (keyPacket.algorithm === enums.read(enums.publicKey, enums.publicKey.dsa) ||
+          keyPacket.algorithm === enums.read(enums.publicKey, enums.publicKey.rsa_sign) ||
+          keyPacket.algorithm === enums.read(enums.publicKey, enums.publicKey.rsa_encrypt_sign) ||
+          keyPacket.algorithm === enums.read(enums.publicKey, enums.publicKey.ecdsa)) &&
          (!signature.keyFlags ||
           (signature.keyFlags[0] & enums.keyFlags.sign_data) !== 0);
 }
@@ -353,6 +367,22 @@ Key.prototype.getEncryptionKeyPacket = function() {
 };
 
 /**
+ * Encrypts all secret key and subkey packets
+ * @param  {String} passphrase
+ */
+Key.prototype.encrypt = function(passphrase) {
+  if (!this.isPrivate()) {
+    throw new Error("Nothing to encrypt in a public key");
+  }
+
+  var keys = this.getAllKeyPackets();
+  for (var i = 0; i < keys.length; i++) {
+    keys[i].encrypt(passphrase);
+    keys[i].clearPrivateMPIs();
+  }
+};
+
+/**
  * Decrypts all secret key and subkey packets
  * @param  {String} passphrase
  * @return {Boolean} true if all key and subkey packets decrypted successfully
@@ -362,7 +392,9 @@ Key.prototype.decrypt = function(passphrase) {
     var keys = this.getAllKeyPackets();
     for (var i = 0; i < keys.length; i++) {
       var success = keys[i].decrypt(passphrase);
-      if (!success) return false;
+      if (!success) {
+        return false;
+      }
     }
   } else {
     throw new Error("Nothing to decrypt in a public key");
@@ -384,7 +416,9 @@ Key.prototype.decryptKeyPacket = function(keyIds, passphrase) {
       for (var j = 0; j < keyIds.length; j++) {
         if (keyId.equals(keyIds[j])) {
           var success = keys[i].decrypt(passphrase);
-          if (!success) return false;
+          if (!success) {
+            return false;
+          }
         }
       }
     }
@@ -407,7 +441,7 @@ Key.prototype.verifyPrimaryKey = function() {
     return enums.keyStatus.revoked;
   }
   // check V3 expiration time
-  if (this.primaryKey.version == 3 && this.primaryKey.expirationTimeV3 !== 0 &&
+  if (this.primaryKey.version === 3 && this.primaryKey.expirationTimeV3 !== 0 &&
     Date.now() > (this.primaryKey.created.getTime() + this.primaryKey.expirationTimeV3*24*3600*1000)) {
     return enums.keyStatus.expired;
   }
@@ -428,7 +462,7 @@ Key.prototype.verifyPrimaryKey = function() {
     return enums.keyStatus.invalid;
   }
   // check V4 expiration time
-  if (this.primaryKey.version == 4 && primaryUser.selfCertificate.keyNeverExpires === false &&
+  if (this.primaryKey.version === 4 && primaryUser.selfCertificate.keyNeverExpires === false &&
     Date.now() > (this.primaryKey.created.getTime() + primaryUser.selfCertificate.keyExpirationTime*1000)) {
     return enums.keyStatus.expired;
   }
@@ -440,10 +474,10 @@ Key.prototype.verifyPrimaryKey = function() {
  * @return {Date|null}
  */
 Key.prototype.getExpirationTime = function() {
-  if (this.primaryKey.version == 3) {
+  if (this.primaryKey.version === 3) {
     return getExpirationTime(this.primaryKey);
   }
-  if (this.primaryKey.version == 4) {
+  if (this.primaryKey.version === 4) {
     var primaryUser = this.getPrimaryUser();
     if (!primaryUser) {
       return null;
@@ -455,11 +489,11 @@ Key.prototype.getExpirationTime = function() {
 
 function getExpirationTime(keyPacket, selfCertificate) {
   // check V3 expiration time
-  if (keyPacket.version == 3 && keyPacket.expirationTimeV3 !== 0) {
+  if (keyPacket.version === 3 && keyPacket.expirationTimeV3 !== 0) {
     return new Date(keyPacket.created.getTime() + keyPacket.expirationTimeV3*24*3600*1000);
   }
   // check V4 expiration time
-  if (keyPacket.version == 4 && selfCertificate.keyNeverExpires === false) {
+  if (keyPacket.version === 4 && selfCertificate.keyNeverExpires === false) {
     return new Date(keyPacket.created.getTime() + selfCertificate.keyExpirationTime*1000);
   }
   return null;
@@ -496,9 +530,9 @@ Key.prototype.getPrimaryUser = function() {
     }
   });
   // return first valid
-  for (var i = 0; i < primUser.length; i++) {
-    if (primUser[i].user.isValidSelfCertificate(this.primaryKey, primUser[i].selfCertificate)) {
-      return primUser[i];
+  for (var k = 0; k < primUser.length; k++) {
+    if (primUser[k].user.isValidSelfCertificate(this.primaryKey, primUser[k].selfCertificate)) {
+      return primUser[k];
     }
   }
   return null;
@@ -591,7 +625,7 @@ function mergeSignatures(source, dest, attr, checkFn) {
       source.forEach(function(sourceSig) {
         if (!sourceSig.isExpired() && (!checkFn || checkFn(sourceSig)) &&
             !dest[attr].some(function(destSig) {
-              return destSig.signature === sourceSig.signature;
+              return util.equalsUint8Array(destSig.signature,sourceSig.signature);
             })) {
           dest[attr].push(sourceSig);
         }
@@ -613,8 +647,8 @@ function User(userPacket) {
   if (!(this instanceof User)) {
     return new User(userPacket);
   }
-  this.userId = userPacket.tag == enums.packet.userid ? userPacket : null;
-  this.userAttribute = userPacket.tag == enums.packet.userAttribute ? userPacket : null;
+  this.userId = userPacket.tag === enums.packet.userid ? userPacket : null;
+  this.userAttribute = userPacket.tag === enums.packet.userAttribute ? userPacket : null;
   this.selfCertifications = null;
   this.otherCertifications = null;
   this.revocationCertifications = null;
@@ -643,11 +677,11 @@ User.prototype.isRevoked = function(certificate, primaryKey) {
   if (this.revocationCertifications) {
     var that = this;
     return this.revocationCertifications.some(function(revCert) {
-             return revCert.issuerKeyId.equals(certificate.issuerKeyId) &&
-                    !revCert.isExpired() &&
-                    (revCert.verified ||
-                     revCert.verify(primaryKey, {userid: that.userId || that.userAttribute, key: primaryKey}));
-          });
+      return revCert.issuerKeyId.equals(certificate.issuerKeyId) &&
+        !revCert.isExpired() &&
+        (revCert.verified ||
+        revCert.verify(primaryKey, {userid: that.userId || that.userAttribute, key: primaryKey}));
+    });
   } else {
     return false;
   }
@@ -774,7 +808,7 @@ SubKey.prototype.toPacketlist = function() {
  * @return {Boolean}
  */
 SubKey.prototype.isValidEncryptionKey = function(primaryKey) {
-  return this.verify(primaryKey) == enums.keyStatus.valid &&
+  return this.verify(primaryKey) === enums.keyStatus.valid &&
          isValidEncryptionKeyPacket(this.subKey, this.bindingSignature);
 };
 
@@ -784,7 +818,7 @@ SubKey.prototype.isValidEncryptionKey = function(primaryKey) {
  * @return {Boolean}
  */
 SubKey.prototype.isValidSigningKey = function(primaryKey) {
-  return this.verify(primaryKey) == enums.keyStatus.valid &&
+  return this.verify(primaryKey) === enums.keyStatus.valid &&
          isValidSigningKeyPacket(this.subKey, this.bindingSignature);
 };
 
@@ -801,7 +835,7 @@ SubKey.prototype.verify = function(primaryKey) {
     return enums.keyStatus.revoked;
   }
   // check V3 expiration time
-  if (this.subKey.version == 3 && this.subKey.expirationTimeV3 !== 0 &&
+  if (this.subKey.version === 3 && this.subKey.expirationTimeV3 !== 0 &&
       Date.now() > (this.subKey.created.getTime() + this.subKey.expirationTimeV3*24*3600*1000)) {
     return enums.keyStatus.expired;
   }
@@ -817,7 +851,7 @@ SubKey.prototype.verify = function(primaryKey) {
     return enums.keyStatus.invalid;
   }
   // check V4 expiration time
-  if (this.subKey.version == 4 &&
+  if (this.subKey.version === 4 &&
       this.bindingSignature.keyNeverExpires === false &&
       Date.now() > (this.subKey.created.getTime() + this.bindingSignature.keyExpirationTime*1000)) {
     return enums.keyStatus.expired;
@@ -870,12 +904,12 @@ SubKey.prototype.update = function(subKey, primaryKey) {
  * @return {{keys: Array<module:key~Key>, err: (Array<Error>|null)}} result object with key and error arrays
  * @static
  */
-function readArmored(armoredText) {
+export function readArmored(armoredText) {
   var result = {};
   result.keys = [];
   try {
     var input = armor.decode(armoredText);
-    if (!(input.type == enums.armor.public_key || input.type == enums.armor.private_key)) {
+    if (!(input.type === enums.armor.public_key || input.type === enums.armor.private_key)) {
       throw new Error('Armored text not of type key');
     }
     var packetlist = new packet.List();
@@ -907,37 +941,34 @@ function readArmored(armoredText) {
  * @param {module:enums.publicKey} [options.keyType=module:enums.publicKey.rsa_encrypt_sign]    to indicate what type of key to make.
  *                             RSA is 1. See {@link http://tools.ietf.org/html/rfc4880#section-9.1}
  * @param {Integer} options.numBits    number of bits for the key creation.
- * @param {String}  options.userId     assumes already in form of "User Name <username@email.com>"
+ * @param {String|Array<String>}  options.userIds    assumes already in form of "User Name <username@email.com>"
+                                                     If array is used, the first userId is set as primary user Id
  * @param {String}  options.passphrase The passphrase used to encrypt the resulting private key
  * @param {Boolean} [options.unlocked=false]    The secret part of the generated key is unlocked
  * @return {module:key~Key}
  * @static
  */
-function generate(options) {
+export function generate(options) {
   var packetlist, secretKeyPacket, userIdPacket, dataToSign, signaturePacket, secretSubkeyPacket, subkeySignaturePacket;
-  
-  if (options.curve)
-    options.keyType = enums.publicKey.ecdsa;
+  return Promise.resolve().then(() => {
+    if (options.curve) {
+      options.keyType = enums.publicKey.ecdsa;
+    }
+    options.keyType = options.keyType || enums.publicKey.rsa_encrypt_sign;
+    if (options.keyType !== enums.publicKey.rsa_encrypt_sign &&
+        options.keyType !== enums.publicKey.ecdsa) { // RSA Encrypt-Only and RSA Sign-Only are deprecated and SHOULD NOT be generated
+      throw new Error('Only RSA Encrypt or Sign supported');
+    }
 
-  options.keyType = options.keyType || enums.publicKey.rsa_encrypt_sign;
-  // RSA Encrypt-Only and RSA Sign-Only are deprecated and SHOULD NOT be generated
-  if (options.keyType !== enums.publicKey.rsa_encrypt_sign
-      && options.keyType !== enums.publicKey.ecdsa) {
-    throw new Error('Only RSA Encrypt or Sign supported');
-  }
-  // Key without passphrase is unlocked by definition
-  if (!options.passphrase) {
-    options.unlocked = true;
-  }
-  
-  options.subkeyType = options.subkeyType || options.keyType;
-  if (options.subkeyType === enums.publicKey.ecdsa)
-    options.subkeyType = enums.publicKey.ecdh;
+    if (!options.passphrase) { // Key without passphrase is unlocked by definition
+      options.unlocked = true;
+    }
+    if (String.prototype.isPrototypeOf(options.userIds) || typeof options.userIds === 'string') {
+      options.userIds = [options.userIds];
+    }
 
-  // generate
-  var genSecretKey = generateSecretKey();
-  var genSecretSubkey = generateSecretSubkey();
-  return Promise.all([genSecretKey, genSecretSubkey]).then(wrapKeyObject);
+    return Promise.all([generateSecretKey(), generateSecretSubkey()]).then(wrapKeyObject);
+  });
 
   function generateSecretKey() {
     secretKeyPacket = new packet.SecretKey();
@@ -950,7 +981,11 @@ function generate(options) {
 
   function generateSecretSubkey() {
     secretSubkeyPacket = new packet.SecretSubkey();
-    secretSubkeyPacket.algorithm = enums.read(enums.publicKey, options.subkeyType);
+    var subkeyType = options.keyType;
+    if (subkeyType === enums.publicKey.ecdsa) {
+      subkeyType = enums.publicKey.ecdh;
+    }
+    secretSubkeyPacket.algorithm = enums.read(enums.publicKey, subkeyType);
     var subkeyMaterial;
     if (options.material)
       subkeyMaterial = options.material.subkey;
@@ -966,37 +1001,50 @@ function generate(options) {
 
     packetlist = new packet.List();
 
-    userIdPacket = new packet.Userid();
-    userIdPacket.read(options.userId);
+    packetlist.push(secretKeyPacket);
 
-    dataToSign = {};
-    dataToSign.userid = userIdPacket;
-    dataToSign.key = secretKeyPacket;
-    signaturePacket = new packet.Signature();
-    signaturePacket.signatureType = enums.signature.cert_generic;
-    signaturePacket.publicKeyAlgorithm = options.keyType;
-    signaturePacket.hashAlgorithm = config.prefer_hash_algorithm;
-    signaturePacket.keyFlags = [enums.keyFlags.certify_keys | enums.keyFlags.sign_data];
-    signaturePacket.preferredSymmetricAlgorithms = [];
-    signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes256);
-    signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes192);
-    signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
-    signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.cast5);
-    if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
-      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
-    signaturePacket.preferredHashAlgorithms = [];
-    signaturePacket.preferredHashAlgorithms.push(enums.hash.sha256);
-    if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
-      signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
-    signaturePacket.preferredHashAlgorithms.push(enums.hash.sha512);
-    signaturePacket.preferredCompressionAlgorithms = [];
-    signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zlib);
-    signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zip);
-    if (config.integrity_protect) {
-      signaturePacket.features = [];
-      signaturePacket.features.push(1); // Modification Detection
-    }
-    signaturePacket.sign(secretKeyPacket, dataToSign);
+    options.userIds.forEach(function(userId, index) {
+      userIdPacket = new packet.Userid();
+      userIdPacket.read(util.str2Uint8Array(userId));
+
+      dataToSign = {};
+      dataToSign.userid = userIdPacket;
+      dataToSign.key = secretKeyPacket;
+      signaturePacket = new packet.Signature();
+      signaturePacket.signatureType = enums.signature.cert_generic;
+      signaturePacket.publicKeyAlgorithm = options.keyType;
+      signaturePacket.hashAlgorithm = config.prefer_hash_algorithm;
+      signaturePacket.keyFlags = [enums.keyFlags.certify_keys | enums.keyFlags.sign_data];
+
+      signaturePacket.preferredSymmetricAlgorithms = [];
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes256);
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes192);
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
+      signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.cast5);
+      if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+        signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
+
+      signaturePacket.preferredHashAlgorithms = [];
+      signaturePacket.preferredHashAlgorithms.push(enums.hash.sha256);
+      if (options.keyType !== enums.publicKey.ecdsa && options.keyType !== enums.publicKey.ecdh)
+        signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
+      signaturePacket.preferredHashAlgorithms.push(enums.hash.sha512);
+
+      signaturePacket.preferredCompressionAlgorithms = [];
+      signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zlib);
+      signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zip);
+      if (index === 0) {
+        signaturePacket.isPrimaryUserID = true;
+      }
+      if (config.integrity_protect) {
+        signaturePacket.features = [];
+        signaturePacket.features.push(1); // Modification Detection
+      }
+      signaturePacket.sign(secretKeyPacket, dataToSign);
+
+      packetlist.push(userIdPacket);
+      packetlist.push(signaturePacket);
+    });
 
     dataToSign = {};
     dataToSign.key = secretKeyPacket;
@@ -1008,9 +1056,6 @@ function generate(options) {
     subkeySignaturePacket.keyFlags = [enums.keyFlags.encrypt_communication | enums.keyFlags.encrypt_storage];
     subkeySignaturePacket.sign(secretKeyPacket, dataToSign);
 
-    packetlist.push(secretKeyPacket);
-    packetlist.push(userIdPacket);
-    packetlist.push(signaturePacket);
     packetlist.push(secretSubkeyPacket);
     packetlist.push(subkeySignaturePacket);
 
@@ -1028,10 +1073,10 @@ function generate(options) {
  * @param  {Array<module:key~Key>} keys Set of keys
  * @return {enums.symmetric}   Preferred symmetric algorithm
  */
-function getPreferredSymAlgo(keys) {
+export function getPreferredSymAlgo(keys) {
   var prioMap = {};
-  for (var i = 0; i < keys.length; i++) {
-    var primaryUser = keys[i].getPrimaryUser();
+  keys.forEach(function(key) {
+    var primaryUser = key.getPrimaryUser();
     if (!primaryUser || !primaryUser.selfCertificate.preferredSymmetricAlgorithms) {
       return config.encryption_cipher;
     }
@@ -1040,7 +1085,7 @@ function getPreferredSymAlgo(keys) {
       entry.prio += 64 >> index;
       entry.count++;
     });
-  }
+  });
   var prefAlgo = {prio: 0, algo: config.encryption_cipher};
   for (var algo in prioMap) {
     try {
@@ -1055,8 +1100,3 @@ function getPreferredSymAlgo(keys) {
   }
   return prefAlgo.algo;
 }
-
-exports.Key = Key;
-exports.readArmored = readArmored;
-exports.generate = generate;
-exports.getPreferredSymAlgo = getPreferredSymAlgo;

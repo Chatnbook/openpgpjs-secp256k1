@@ -157,7 +157,7 @@ describe('Elliptic Curve Cryptography', function () {
   });
   it('Generate key pair', function (done) {
     var options = {
-      userId: "Hamlet (secp256k1) <hamlet@example.net>",
+      userIds: ["Hamlet (secp256k1) <hamlet@example.net>"],
       curve: "secp256k1",
       passphrase: "ophelia"
     };

@@ -2,26 +2,46 @@
  * @see module:crypto/crypto
  * @module crypto
  */
-module.exports = {
+
+'use strict';
+
+import cipher from './cipher';
+import hash from './hash';
+import cfb from './cfb';
+import * as gcm from './gcm';
+import publicKey from './public_key';
+import signature from './signature';
+import random from './random';
+import pkcs1 from './pkcs1';
+import pkcs5 from './pkcs5.js';
+import crypto from './crypto.js';
+import rfc3394 from './rfc3394.js';
+
+const mod = {
   /** @see module:crypto/cipher */
-  cipher: require('./cipher'),
+  cipher: cipher,
   /** @see module:crypto/hash */
-  hash: require('./hash'),
+  hash: hash,
   /** @see module:crypto/cfb */
-  cfb: require('./cfb.js'),
+  cfb: cfb,
+  /** @see module:crypto/gcm */
+  gcm: gcm,
   /** @see module:crypto/public_key */
-  publicKey: require('./public_key'),
+  publicKey: publicKey,
   /** @see module:crypto/signature */
-  signature: require('./signature.js'),
+  signature: signature,
   /** @see module:crypto/random */
-  random: require('./random.js'),
+  random: random,
   /** @see module:crypto/pkcs1 */
-  pkcs1: require('./pkcs1.js'),
-  /** @see module:crypto/pkcs1 */
-  pkcs5: require('./pkcs5.js')
+  pkcs1: pkcs1,
+  /** @see module:crypto/rfc3394 */
+  rfc3394: rfc3394,
+  /** @see module:crypto/pkcs5 */
+  pkcs5: pkcs5
 };
 
-var crypto = require('./crypto.js');
+for (var i in crypto) {
+  mod[i] = crypto[i];
+}
 
-for (var i in crypto)
-  module.exports[i] = crypto[i];
+export default mod;

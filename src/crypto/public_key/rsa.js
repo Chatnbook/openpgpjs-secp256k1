@@ -24,10 +24,12 @@
  * @module crypto/public_key/rsa
  */
 
-var BigInteger = require('./jsbn.js'),
-  util = require('../../util.js'),
-  random = require('../random.js'),
-  config = require('../../config');
+'use strict';
+
+import BigInteger from './jsbn.js';
+import util from '../../util.js';
+import random from '../random.js';
+import config from '../../config';
 
 function SecureRandom() {
   function nextBytes(byteArray) {
@@ -55,7 +57,7 @@ function unblind(t, n) {
   return t.multiply(unblinder).mod(n);
 }
 
-function RSA() {
+export default function RSA() {
   /**
    * This function uses jsbn Big Num library to decrypt RSA
    * @param m
@@ -119,7 +121,7 @@ function RSA() {
 
   // "empty" RSA key constructor
 
-  function keyObject() {
+  function KeyObject() {
     this.n = null;
     this.e = 0;
     this.ee = null;
@@ -134,7 +136,7 @@ function RSA() {
   // Generate a new random private key B bits long, using public expt E
 
   function generate(B, E) {
-    var webCrypto = util.getWebCrypto();
+    var webCrypto = util.getWebCryptoAll();
 
     //
     // Native RSA keygen using Web Crypto
@@ -151,7 +153,7 @@ function RSA() {
         keyGenOpt = {
           name: 'RSA-OAEP',
           modulusLength: B, // the specified keysize in bits
-          publicExponent: Euint8.subarray(0, 3), // take three bytes (max 65537)
+          publicExponent: Euint8.subarray(0, 3) // take three bytes (max 65537)
         };
         keys = webCrypto.generateKey(keyGenOpt, true, ['encrypt', 'decrypt']);
       }
@@ -165,10 +167,10 @@ function RSA() {
             name: 'SHA-1' // not required for actual RSA keys, but for crypto api 'sign' and 'verify'
           }
         };
-        
+
         keys = webCrypto.generateKey(keyGenOpt, true, ['sign', 'verify']);
-        if (!(keys instanceof Promise)) { // IE11 KeyOperation
-          keys = convertKeyOperation(keys, 'Error generating RSA key pair.');
+        if (typeof keys.then !== 'function') { // IE11 KeyOperation
+          keys = util.promisifyIE11Op(keys, 'Error generating RSA key pair.');
         }
       }
 
@@ -185,15 +187,15 @@ function RSA() {
       // export the generated keys as JsonWebKey (JWK)
       // https://tools.ietf.org/html/draft-ietf-jose-json-web-key-33
       var key = webCrypto.exportKey('jwk', keypair.privateKey);
-      if (!(key instanceof Promise)) { // IE11 KeyOperation
-        key = convertKeyOperation(key, 'Error exporting RSA key pair.');
+      if (typeof key.then !== 'function') { // IE11 KeyOperation
+        key = util.promisifyIE11Op(key, 'Error exporting RSA key pair.');
       }
       return key;
     }
 
     function decodeKey(jwk) {
       // map JWK parameters to local BigInteger type system
-      var key = new keyObject();
+      var key = new KeyObject();
       key.n = toBigInteger(jwk.n);
       key.ee = new BigInteger(E, 16);
       key.d = toBigInteger(jwk.d);
@@ -210,23 +212,12 @@ function RSA() {
       return key;
     }
 
-    function convertKeyOperation(keyop, errmsg) {
-      return new Promise(function(resolve, reject) {
-        keyop.onerror = function (err) { 
-          reject(new Error(errmsg));
-        }
-        keyop.oncomplete = function (e) {
-          resolve(e.target.result);
-        }
-      });
-    }
-
     //
     // JS code
     //
 
     return new Promise(function(resolve) {
-      var key = new keyObject();
+      var key = new KeyObject();
       var rng = new SecureRandom();
       var qs = B >> 1;
       key.e = parseInt(E, 16);
@@ -235,13 +226,15 @@ function RSA() {
       for (;;) {
         for (;;) {
           key.p = new BigInteger(B - qs, 1, rng);
-          if (key.p.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.p.isProbablePrime(10))
+          if (key.p.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.p.isProbablePrime(10)) {
             break;
+          }
         }
         for (;;) {
           key.q = new BigInteger(qs, 1, rng);
-          if (key.q.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.q.isProbablePrime(10))
+          if (key.q.subtract(BigInteger.ONE).gcd(key.ee).compareTo(BigInteger.ONE) === 0 && key.q.isProbablePrime(10)) {
             break;
+          }
         }
         if (key.p.compareTo(key.q) <= 0) {
           var t = key.p;
@@ -270,7 +263,5 @@ function RSA() {
   this.verify = verify;
   this.sign = sign;
   this.generate = generate;
-  this.keyObject = keyObject;
+  this.keyObject = KeyObject;
 }
-
-module.exports = RSA;
